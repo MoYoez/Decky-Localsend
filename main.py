@@ -33,7 +33,11 @@ class Plugin:
         self.binary_path = os.path.join(decky.DECKY_PLUGIN_DIR, "bin", "localsend-core")
         self.backend_url = f"{self.backend_protocol}://127.0.0.1:{self.backend_port}"
         self.settings_path = os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "plugin-settings.json")
-        self.network_interface = ""
+        self.legacy_mode = False
+        self.multicast_address = "224.0.0.167"
+        self.multicast_port = 53317
+        self.pin = ""
+        self.auto_save = True
         
         # Unix Domain Socket notification server
         self.socket_path = "/tmp/localsend-notify.sock"
@@ -53,7 +57,18 @@ class Plugin:
             if os.path.exists(self.settings_path):
                 with open(self.settings_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                self.network_interface = str(data.get("network_interface", "")).strip()
+                self.legacy_mode = bool(data.get("legacy_mode", self.legacy_mode))
+                self.multicast_address = str(data.get("multicast_address", self.multicast_address)).strip()
+                multicast_port = data.get("multicast_port", self.multicast_port)
+                try:
+                    self.multicast_port = int(multicast_port or 0)
+                except (ValueError, TypeError):
+                    self.multicast_port = 0
+                self.pin = str(data.get("pin", "")).strip()
+                self.auto_save = bool(data.get("auto_save", self.auto_save))
+                upload_dir = str(data.get("download_folder", "")).strip()
+                if upload_dir:
+                    self.upload_dir = upload_dir
         except Exception as e:
             decky.logger.warning(f"Failed to load settings: {e}")
 
@@ -63,7 +78,14 @@ class Plugin:
             os.makedirs(decky.DECKY_PLUGIN_SETTINGS_DIR, exist_ok=True)
             with open(self.settings_path, "w", encoding="utf-8") as f:
                 json.dump(
-                    {"network_interface": self.network_interface},
+                    {
+                        "legacy_mode": self.legacy_mode,
+                        "multicast_address": self.multicast_address,
+                        "multicast_port": self.multicast_port,
+                        "pin": self.pin,
+                        "auto_save": self.auto_save,
+                        "download_folder": self.upload_dir,
+                    },
                     f,
                     ensure_ascii=True,
                     indent=2,
@@ -175,9 +197,24 @@ class Plugin:
         try:
             asyncio.run_coroutine_threadsafe(
                 decky.emit("unix_socket_notification", {
+                    "type": "info",
                     "title": title,
-                    "message": message
+                    "message": message,
                 }),
+                self.loop
+            )
+        except Exception as e:
+            decky.logger.error(f"Failed to emit notification: {e}")
+
+    def _emit_notification_event(self, payload: dict):
+        """Emit full notification payload to frontend"""
+        if self.loop is None or self.loop.is_closed():
+            decky.logger.warning("Event loop not available, skipping notification emit")
+            return
+
+        try:
+            asyncio.run_coroutine_threadsafe(
+                decky.emit("unix_socket_notification", payload),
                 self.loop
             )
         except Exception as e:
@@ -191,6 +228,13 @@ class Plugin:
             message = notification.get('message', '')
             notification_data = notification.get('data', {})
             is_text_only = notification.get('isTextOnly', False)
+
+            self._emit_notification_event({
+                "type": notification_type,
+                "title": title,
+                "message": message,
+                "data": notification_data,
+            })
             
             session_id = notification_data.get('sessionId', '')
             file_id = notification_data.get('fileId', '')
@@ -202,12 +246,6 @@ class Plugin:
             if notification_type == 'upload_start':
                 decky.logger.info(f"📤 Upload started: {file_name} (size: {file_size} bytes)")
                 decky.logger.info(f"   Session ID: {session_id}, File ID: {file_id}")
-                
-                # Emit event to frontend
-                self._emit_notification_safe(
-                    "Upload Started",
-                    f"File upload started: {file_name} (size: {file_size} bytes)"
-                )
                 
                 # Save upload session information
                 if session_id not in self.upload_sessions:
@@ -257,11 +295,6 @@ class Plugin:
                         decky.logger.error(f"Failed to read text content: {e}")
                 
                 # Emit regular upload completed event
-                self._emit_notification_safe(
-                    "Upload Completed",
-                    f"File upload completed: {file_name} (size: {file_size} bytes)"
-                )
-                
                 # Update upload session status
                 if session_id in self.upload_sessions and file_id in self.upload_sessions[session_id]:
                     file_session = self.upload_sessions[session_id][file_id]
@@ -272,19 +305,8 @@ class Plugin:
                     
             elif notification_type == 'info':
                 decky.logger.info(f"ℹ️  {title}: {message}")
-                
-                # Emit event to frontend
-                self._emit_notification_safe("Info", f"{title}: {message}")
-                
             else:
                 decky.logger.warning(f"⚠️  Unknown notification type: {notification_type}")
-                
-                # Emit event to frontend
-                self._emit_notification_safe(
-                    "Unknown Notification Type",
-                    f"Unknown notification type: {notification_type}"
-                )
-                
         except Exception as e:
             decky.logger.error(f"❌ Error processing notification: {str(e)}")
             self._emit_notification_safe(
@@ -313,11 +335,18 @@ class Plugin:
             self.config_path,
             "-useDefaultUploadFolder",
             self.upload_dir,
-            "-log",
-            "prod",
+            "-useReferNetworkInterface",
+            "*",
         ]
-        if self.network_interface:
-            cmd.extend(["-useReferNetworkInterface", self.network_interface])
+        if self.multicast_address:
+            cmd.extend(["-useMultcastAddress", self.multicast_address])
+        if self.multicast_port > 0:
+            cmd.extend(["-useMultcastPort", str(self.multicast_port)])
+        if self.legacy_mode:
+            cmd.append("-useLegacyMode")
+        if self.pin:
+            cmd.extend(["-usePin", self.pin])
+        cmd.append(f"-useAutoSave={'true' if self.auto_save else 'false'}")
 
         self.process = subprocess.Popen(
             cmd,
@@ -358,6 +387,80 @@ class Plugin:
 
     async def get_backend_status(self):
         return {"running": self._is_running(), "url": self.backend_url}
+
+    def _read_config_yaml(self) -> dict:
+        if not os.path.exists(self.config_path):
+            return {}
+        try:
+            with open(self.config_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+        except Exception as e:
+            decky.logger.error(f"Failed to read config: {e}")
+            return {}
+
+        config = {}
+        for line in lines:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or ":" not in line:
+                continue
+            key, _, value = stripped.partition(":")
+            key = key.strip()
+            value = value.strip()
+            if value.startswith('"') and value.endswith('"'):
+                value = value[1:-1]
+            elif value.lower() in ("true", "false"):
+                value = value.lower() == "true"
+            else:
+                try:
+                    value = int(value)
+                except ValueError:
+                    pass
+            config[key] = value
+        return config
+
+    def _format_yaml_value(self, value):
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        if isinstance(value, (int, float)):
+            return str(value)
+        value_str = str(value)
+        if value_str == "":
+            return '""'
+        needs_quote = any(ch in value_str for ch in [":", "#", "\n", "\r", "\t"]) or value_str.startswith(" ") or value_str.endswith(" ")
+        return json.dumps(value_str) if needs_quote else value_str
+
+    def _update_config_yaml(self, updates: dict) -> None:
+        os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+        lines = []
+        if os.path.exists(self.config_path):
+            try:
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    lines = f.readlines()
+            except Exception as e:
+                decky.logger.error(f"Failed to read config for update: {e}")
+                lines = []
+
+        updated_keys = set()
+        for idx, line in enumerate(lines):
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or ":" not in line:
+                continue
+            key, _, _ = stripped.partition(":")
+            key = key.strip()
+            if key in updates:
+                lines[idx] = f"{key}: {self._format_yaml_value(updates[key])}\n"
+                updated_keys.add(key)
+
+        for key, value in updates.items():
+            if key in updated_keys:
+                continue
+            lines.append(f"{key}: {self._format_yaml_value(value)}\n")
+
+        try:
+            with open(self.config_path, "w", encoding="utf-8") as f:
+                f.writelines(lines)
+        except Exception as e:
+            decky.logger.error(f"Failed to write config: {e}")
 
     def _get_session(self):
         session = requests.Session()
@@ -401,62 +504,6 @@ class Plugin:
         except Exception as e:
             decky.logger.error(f"Proxy request failed: {e}")
             return {"error": str(e)}, 500
-
-    async def _scan_other_network_interface(self):
-        """Scan other network interface"""
-        interface_name = getattr(self, "interface_name", None)
-        results = []
-
-        try:
-            interface_names = [name for _, name in socket.if_nameindex()]
-        except Exception as e:
-            decky.logger.error(f"Failed to list network interfaces: {e}")
-            return results
-
-        for name in interface_names:
-            if interface_name and name == interface_name:
-                continue
-
-            ipv4_addrs = self._get_interface_ipv4_addrs(name)
-            if not ipv4_addrs:
-                continue
-
-            results.append({
-                "name": name,
-                "ipv4": ipv4_addrs,
-            })
-
-        return results
-
-    def _get_interface_ipv4_addrs(self, interface_name: str):
-        """Get IPv4 addresses for a specific interface"""
-        addresses = set()
-
-        try:
-            output = subprocess.check_output(
-                ["ip", "-o", "-4", "addr", "show", "dev", interface_name],
-                text=True,
-            )
-            for line in output.splitlines():
-                parts = line.split()
-                if "inet" in parts:
-                    addr = parts[parts.index("inet") + 1].split("/")[0]
-                    addresses.add(addr)
-        except Exception:
-            try:
-                output = subprocess.check_output(
-                    ["ifconfig", interface_name],
-                    text=True,
-                )
-                for line in output.splitlines():
-                    line = line.strip()
-                    if line.startswith("inet "):
-                        addr = line.split()[1]
-                        addresses.add(addr)
-            except Exception:
-                return []
-
-        return [addr for addr in addresses if not addr.startswith("127.")]
 
 
     # used in frontend to get data from backend.
@@ -507,33 +554,43 @@ class Plugin:
             "socket_exists": os.path.exists(self.socket_path)
         }
 
-    # used in frontend to get network interface setting.
-    async def get_network_interface_setting(self):
-        return {"interface": self.network_interface}
+    async def get_backend_config(self):
+        config = self._read_config_yaml()
+        return {
+            "alias": str(config.get("alias", "")).strip(),
+            "download_folder": self.upload_dir,
+            "legacy_mode": self.legacy_mode,
+            "multicast_address": self.multicast_address,
+            "multicast_port": self.multicast_port,
+            "pin": self.pin,
+            "auto_save": self.auto_save,
+        }
 
-    # used in frontend to list available network interfaces.
-    async def get_network_interfaces(self):
-        interfaces = []
+    async def set_backend_config(self, config: dict):
+        alias = str(config.get("alias", "")).strip()
+        download_folder = str(config.get("download_folder", "")).strip()
+        legacy_mode = bool(config.get("legacy_mode", False))
+        multicast_address = str(config.get("multicast_address", "")).strip()
+        multicast_port_raw = config.get("multicast_port", 0)
+        pin = str(config.get("pin", "")).strip()
+        auto_save = bool(config.get("auto_save", True))
+
+        self._update_config_yaml({"alias": alias})
+
+        if download_folder:
+            self.upload_dir = download_folder
+
+        self.legacy_mode = legacy_mode
+        self.multicast_address = multicast_address
         try:
-            interface_names = [name for _, name in socket.if_nameindex()]
-        except Exception as e:
-            decky.logger.error(f"Failed to list network interfaces: {e}")
-            return {"interfaces": interfaces}
+            self.multicast_port = int(multicast_port_raw or 0)
+        except (ValueError, TypeError):
+            self.multicast_port = 0
+        self.pin = pin
+        self.auto_save = auto_save
 
-        for name in sorted(interface_names):
-            ipv4_addrs = self._get_interface_ipv4_addrs(name)
-            interfaces.append({
-                "name": name,
-                "ipv4": ipv4_addrs,
-            })
-
-        return {"interfaces": interfaces}
-
-    # used in frontend to set network interface and restart backend if needed.
-    async def set_network_interface_setting(self, interface: str):
-        value = (interface or "").strip()
-        self.network_interface = value
         self._save_settings()
+        self._ensure_dirs()
 
         restarted = False
         try:
@@ -546,14 +603,12 @@ class Plugin:
             return {
                 "success": False,
                 "error": str(e),
-                "interface": self.network_interface,
                 "restarted": restarted,
                 "running": self._is_running(),
             }
 
         return {
             "success": True,
-            "interface": self.network_interface,
             "restarted": restarted,
             "running": self._is_running(),
         }

@@ -22,16 +22,31 @@ export const getNotifyServerStatus = callable<
   { running: boolean; socket_path: string; socket_exists: boolean }
 >("get_notify_server_status");
 
-// Network Interface API
-export const getNetworkInterfaceSetting = callable<
+// Backend Config API
+export const getBackendConfig = callable<
   [],
-  { interface: string }
->("get_network_interface_setting");
-export const getNetworkInterfaces = callable<
-  [],
-  { interfaces: { name: string; ipv4: string[] }[] }
->("get_network_interfaces");
-export const setNetworkInterfaceSetting = callable<
-  [string],
-  { success: boolean; interface: string; restarted: boolean; running: boolean; error?: string }
->("set_network_interface_setting");
+  {
+    alias: string;
+    download_folder: string;
+    legacy_mode: boolean;
+    multicast_address: string;
+    multicast_port: number;
+    pin: string;
+    auto_save: boolean;
+  }
+>("get_backend_config");
+
+export const setBackendConfig = callable<
+  [
+    {
+      alias: string;
+      download_folder: string;
+      legacy_mode: boolean;
+      multicast_address: string;
+      multicast_port: number | string;
+      pin: string;
+      auto_save: boolean;
+    }
+  ],
+  { success: boolean; restarted: boolean; running: boolean; error?: string }
+>("set_backend_config");

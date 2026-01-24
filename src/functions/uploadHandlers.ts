@@ -1,5 +1,6 @@
 import { toaster } from "@decky/api";
 import { proxyPost } from "../utils/proxyReq";
+import { requestPin } from "../utils/requestPin";
 import type { FileInfo } from "../types/file";
 import type { UploadProgress } from "../types/upload";
 import type { ScanDevice } from "../types/devices";
@@ -63,13 +64,25 @@ export const createUploadHandlers = (
         };
       });
 
-      const prepareResult = await proxyPost(
-        "/api/self/v1/prepare-upload",
-        {
-          targetTo: selectedDevice.fingerprint,
-          files: filesMap,
+      const prepareUpload = (pin?: string) => {
+        const pinParam = pin ? `?pin=${encodeURIComponent(pin)}` : "";
+        return proxyPost(
+          `/api/self/v1/prepare-upload${pinParam}`,
+          {
+            targetTo: selectedDevice.fingerprint,
+            files: filesMap,
+          }
+        );
+      };
+
+      let prepareResult = await prepareUpload();
+      if (prepareResult.status === 401) {
+        const pin = await requestPin("PIN Required");
+        if (!pin) {
+          throw new Error("PIN required to continue");
         }
-      );
+        prepareResult = await prepareUpload(pin);
+      }
 
       if (prepareResult.status !== 200) {
         throw new Error(prepareResult.data?.error || `Prepare upload failed: ${prepareResult.status}`);

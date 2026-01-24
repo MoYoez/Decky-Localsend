@@ -6,8 +6,7 @@ import {
   Field,
   Focusable,
   ToggleField,
-  DropdownItem,
-  showModal,  
+  showModal,
 } from "@decky/ui";
 import {
   definePlugin,
@@ -18,19 +17,24 @@ import {
 
 import { useLocalSendStore } from "./utils/store";
 import { useEffect, useState } from "react";
-import { FaShareAlt, FaTimes } from "react-icons/fa";
+import { FaTimes } from "react-icons/fa";
+import {LocalSendIcon} from "./components/logo";
 import DevicesPanel from "./components/device";
 import { TextReceivedModal } from "./components/TextReceivedModal";
+import { ConfirmReceiveModal } from "./components/ConfirmReceiveModal";
+import { BasicInputBoxModal } from "./components/basicInputBoxModal";
 
 import type { BackendStatus } from "./types/backend";
 import type { UploadProgress } from "./types/upload";
 
-import { getBackendStatus, getNetworkInterfaceSetting, getNetworkInterfaces, setNetworkInterfaceSetting } from "./functions/api";
+import { getBackendConfig, getBackendStatus, setBackendConfig } from "./functions/api";
 import { createBackendHandlers } from "./functions/backendHandlers";
 import { createDeviceHandlers } from "./functions/deviceHandlers";
 import { createFileHandlers } from "./functions/fileHandlers";
 import { createUploadHandlers } from "./functions/uploadHandlers";
 import { createDevToolsHandlers } from "./functions/devToolsHandlers";
+import { proxyGet } from "./utils/proxyReq";
+import { openFolder } from "./utils/openFolder";
 // import { createTextHandlers } from "./functions/textHandlers"; // Reserved for future direct text sending
 
 function Content() {
@@ -54,9 +58,14 @@ function Content() {
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
   const [uploading, setUploading] = useState(false);
   const [showDevTools, setShowDevTools] = useState(false);
-  const [networkInterface, setNetworkInterface] = useState("");
-  const [applyingNetworkInterface, setApplyingNetworkInterface] = useState(false);
-  const [networkInterfaces, setNetworkInterfaces] = useState<{ name: string; ipv4: string[] }[]>([]);
+  const [configAlias, setConfigAlias] = useState("");
+  const [downloadFolder, setDownloadFolder] = useState("");
+  const [legacyMode, setLegacyMode] = useState(false);
+  const [multicastAddress, setMulticastAddress] = useState("");
+  const [multicastPort, setMulticastPort] = useState("");
+  const [pin, setPin] = useState("");
+  const [autoSave, setAutoSave] = useState(true);
+  const [applyingConfig, setApplyingConfig] = useState(false);
 
   useEffect(() => {
     getBackendStatus().then(setBackend).catch((error) => {
@@ -65,19 +74,19 @@ function Content() {
         body: `${error}`,
       });
     });
-    getNetworkInterfaceSetting()
-      .then((result) => setNetworkInterface(result.interface ?? ""))
+    getBackendConfig()
+      .then((result) => {
+        setConfigAlias(result.alias ?? "");
+        setDownloadFolder(result.download_folder ?? "");
+        setLegacyMode(!!result.legacy_mode);
+        setMulticastAddress(result.multicast_address ?? "");
+        setMulticastPort(result.multicast_port ? String(result.multicast_port) : "");
+        setPin(result.pin ?? "");
+        setAutoSave(!!result.auto_save);
+      })
       .catch((error) => {
         toaster.toast({
-          title: "Failed to load network interface",
-          body: `${error}`,
-        });
-      });
-    getNetworkInterfaces()
-      .then((result) => setNetworkInterfaces(result.interfaces ?? []))
-      .catch((error) => {
-        toaster.toast({
-          title: "Failed to load interfaces",
+          title: "Failed to load config",
           body: `${error}`,
         });
       });
@@ -100,30 +109,173 @@ function Content() {
   
   const { handleCheckNotifyStatus, handleViewUploadHistory, handleClearHistory } = createDevToolsHandlers();
 
-  const handleApplyNetworkInterface = async () => {
-    setApplyingNetworkInterface(true);
+  const handleChooseDownloadFolder = async () => {
     try {
-      const result = await setNetworkInterfaceSetting(networkInterface);
+      const result = await openFolder("/home/deck");
+      const newPath = result.realpath ?? result.path;
+      setDownloadFolder(newPath);
+      await saveConfig({ download_folder: newPath });
+    } catch (error) {
+      toaster.toast({
+        title: "Failed to select folder",
+        body: String(error),
+      });
+    }
+  };
+
+  const openInputModal = (title: string, label: string) =>
+    new Promise<string | null>((resolve) => {
+      const modal = showModal(
+        <BasicInputBoxModal
+          title={title}
+          label={label}
+          onSubmit={(value) => {
+            resolve(value);
+            modal.Close();
+          }}
+          onCancel={() => {
+            resolve(null);
+            modal.Close();
+          }}
+          closeModal={() => modal.Close()}
+        />
+      );
+    });
+
+  const handleAddText = async () => {
+    const value = await openInputModal("Send Text", "Enter text content");
+    if (value === null) {
+      return;
+    }
+    const now = Date.now();
+    addFile({
+      id: `text-${now}-${Math.random().toString(16).slice(2)}`,
+      fileName: `text-${now}.txt`,
+      sourcePath: "",
+      textContent: value,
+    });
+    toaster.toast({
+      title: "Text added",
+      body: "Ready to send as .txt",
+    });
+  };
+
+  // save config
+  const saveConfig = async (updates: {
+    alias?: string;
+    download_folder?: string;
+    legacy_mode?: boolean;
+    multicast_address?: string;
+    multicast_port?: string;
+    pin?: string;
+    auto_save?: boolean;
+  }) => {
+    try {
+      const result = await setBackendConfig({
+        alias: updates.alias ?? configAlias,
+        download_folder: updates.download_folder ?? downloadFolder,
+        legacy_mode: updates.legacy_mode ?? legacyMode,
+        multicast_address: updates.multicast_address ?? multicastAddress,
+        multicast_port: updates.multicast_port ?? multicastPort,
+        pin: updates.pin ?? pin,
+        auto_save: updates.auto_save ?? autoSave,
+      });
       if (!result.success) {
         throw new Error(result.error ?? "Unknown error");
       }
-      setNetworkInterface(result.interface ?? "");
-      if (result.restarted) {
-        setBackend((prev) => ({ ...prev, running: result.running }));
-      }
       toaster.toast({
-        title: "Network interface updated",
-        body: result.restarted
-          ? "Backend restarted to apply changes"
-          : "Saved. Restart backend to apply changes",
+        title: "Config saved",
+        body: result.restarted ? "Backend restarted" : "Restart backend to take effect",
       });
     } catch (error) {
       toaster.toast({
-        title: "Failed to update interface",
+        title: "Failed to save config",
+        body: `${error}`,
+      });
+    }
+  };
+
+  const handleEditAlias = async () => {
+    const value = await openInputModal("Alias", "Enter alias");
+    if (value !== null) {
+      const newValue = value.trim();
+      setConfigAlias(newValue);
+      await saveConfig({ alias: newValue });
+    }
+  };
+
+  const handleEditMulticastAddress = async () => {
+    const value = await openInputModal("Multicast Address", "Enter multicast address");
+    if (value !== null) {
+      const newValue = value.trim();
+      setMulticastAddress(newValue);
+      await saveConfig({ multicast_address: newValue });
+    }
+  };
+
+  const handleEditDownloadFolder = async () => {
+    const value = await openInputModal("Download Folder", "Enter download folder path");
+    if (value !== null) {
+      const newValue = value.trim();
+      setDownloadFolder(newValue);
+      await saveConfig({ download_folder: newValue });
+    }
+  };
+
+  const handleEditMulticastPort = async () => {
+    const value = await openInputModal("Multicast Port", "Enter multicast port");
+    if (value !== null) {
+      const newValue = value.trim();
+      setMulticastPort(newValue);
+      await saveConfig({ multicast_port: newValue });
+    }
+  };
+
+  const handleEditPin = async () => {
+    const value = await openInputModal("PIN", "Enter PIN");
+    if (value !== null) {
+      const newValue = value.trim();
+      setPin(newValue);
+      await saveConfig({ pin: newValue });
+    }
+  };
+
+  const handleToggleLegacyMode = async (checked: boolean) => {
+    setLegacyMode(checked);
+    await saveConfig({ legacy_mode: checked });
+  };
+
+  const handleToggleAutoSave = async (checked: boolean) => {
+    setAutoSave(checked);
+    await saveConfig({ auto_save: checked });
+  };
+
+  const handleApplyConfig = async () => {
+    setApplyingConfig(true);
+    try {
+      const result = await setBackendConfig({
+        alias: configAlias,
+        download_folder: downloadFolder,
+        legacy_mode: legacyMode,
+        multicast_address: multicastAddress,
+        multicast_port: multicastPort,
+        pin,
+        auto_save: autoSave,
+      });
+      if (!result.success) {
+        throw new Error(result.error ?? "Unknown error");
+      }
+      toaster.toast({
+        title: "Config updated",
+        body: "Restart backend to take effect",
+      });
+    } catch (error) {
+      toaster.toast({
+        title: "Failed to update config",
         body: `${error}`,
       });
     } finally {
-      setApplyingNetworkInterface(false);
+      setApplyingConfig(false);
     }
   };
   
@@ -178,6 +330,11 @@ function Content() {
         <PanelSectionRow>
           <ButtonItem layout="below" onClick={handleFolderSelect} disabled={uploading}>
             Choose Folder
+          </ButtonItem>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={handleAddText} disabled={uploading}>
+            Add Text
           </ButtonItem>
         </PanelSectionRow>
         <PanelSectionRow>
@@ -258,43 +415,83 @@ function Content() {
           </PanelSectionRow>
         )}
       </PanelSection>
-      <PanelSection title="Settings">
+      <PanelSection title="Configuration">
         <PanelSectionRow>
-          <DropdownItem
-            label="Network Interface"
-            description="Leave empty for default. Use * for all interfaces."
-            disabled={applyingNetworkInterface}
-            rgOptions={[
-              { data: "", label: "Default" },
-              { data: "*", label: "All Interfaces (*)" },
-              ...networkInterfaces.map((iface) => ({
-                data: iface.name,
-                label: iface.ipv4.length
-                  ? `${iface.name} (${iface.ipv4.join(", ")})`
-                  : iface.name,
-              })),
-            ]}
-            selectedOption={{
-              data: networkInterface,
-              label:
-                networkInterface === ""
-                  ? "Default"
-                  : networkInterface === "*"
-                  ? "All Interfaces (*)"
-                  : networkInterface,
-            }}
-            onChange={(option: { data: string }) => setNetworkInterface(option.data)}
+          <Field label="Alias">
+            {configAlias || "Default"}
+          </Field>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={handleEditAlias}>
+            Edit Alias
+          </ButtonItem>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <Field label="Download Folder">
+            {downloadFolder || "Default"}
+          </Field>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={handleEditDownloadFolder}>
+            Edit Download Folder
+          </ButtonItem>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={handleChooseDownloadFolder}>
+            Choose Download Folder
+          </ButtonItem>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <Field label="Multicast Address">
+            {multicastAddress || "Default"}
+          </Field>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={handleEditMulticastAddress}>
+            Edit Multicast Address
+          </ButtonItem>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <Field label="Multicast Port">
+            {multicastPort || "Default"}
+          </Field>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={handleEditMulticastPort}>
+            Edit Multicast Port
+          </ButtonItem>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ToggleField
+            label="Legacy Mode"
+            description="Use legacy HTTP scan mode (scan every 30 seconds)"
+            checked={legacyMode}
+            onChange={handleToggleLegacyMode}
           />
         </PanelSectionRow>
         <PanelSectionRow>
-          <ButtonItem
-            layout="below"
-            onClick={handleApplyNetworkInterface}
-            disabled={applyingNetworkInterface}
-          >
-            {applyingNetworkInterface ? "Applying..." : "Apply and Restart Backend"}
+          <Field label="PIN">{pin ? "Configured" : "Not set"}</Field>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={handleEditPin}>
+            Edit PIN
           </ButtonItem>
         </PanelSectionRow>
+        <PanelSectionRow>
+          <ToggleField
+            label="Auto Save"
+            description="If disabled, require confirmation before receiving"
+            checked={autoSave}
+            onChange={handleToggleAutoSave}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={handleApplyConfig} disabled={applyingConfig}>
+            APPLY
+          </ButtonItem>
+        </PanelSectionRow>
+      </PanelSection>
+      <PanelSection title="Settings">
         <PanelSectionRow>
           <ButtonItem layout="below" onClick={handleReset}>
             Reset All Data
@@ -334,10 +531,58 @@ function Content() {
 
 
 export default definePlugin(() => {
-  const EmitEventListener = addEventListener("unix_socket_notification", (event: { title: string; message: string }) => {
+  const EmitEventListener = addEventListener("unix_socket_notification", (event: { type?: string; title?: string; message?: string; data?: any }) => {
+    if (event.type === "confirm_recv") {
+      const data = event.data ?? {};
+      const sessionId = String(data.sessionId || "");
+      const modalResult = showModal(
+        <ConfirmReceiveModal
+          from={String(data.from || "")}
+          fileCount={Number(data.fileCount || 0)}
+          files={Array.isArray(data.files) ? data.files : []}
+          onConfirm={async (confirmed) => {
+            if (!sessionId) {
+              toaster.toast({
+                title: "Confirm failed",
+                body: "Missing sessionId",
+              });
+              return;
+            }
+            try {
+              const result = await proxyGet(
+                `/api/self/v1/confirm-recv?sessionId=${encodeURIComponent(sessionId)}&confirmed=${confirmed}`
+              );
+              if (result.status !== 200) {
+                throw new Error(result.data?.error || "Confirm request failed");
+              }
+              toaster.toast({
+                title: confirmed ? "Accepted" : "Rejected",
+                body: confirmed ? "Receive confirmed" : "Receive rejected",
+              });
+            } catch (error) {
+              toaster.toast({
+                title: "Confirm failed",
+                body: String(error),
+              });
+            }
+          }}
+          closeModal={() => modalResult.Close()}
+        />
+      );
+      return;
+    }
+
+    if (event.type === "pin_required") {
+      toaster.toast({
+        title: event.title || "PIN Required",
+        body: event.message || "PIN required for incoming files",
+      });
+      return;
+    }
+
     toaster.toast({
-      title: event.title,
-      body: event.message,
+      title: event.title || "Notification",
+      body: event.message || "",
     });
   });
 
@@ -362,7 +607,7 @@ export default definePlugin(() => {
     // The content of your plugin's menu
     content: <Content />,
     // The icon displayed in the plugin list
-    icon: <FaShareAlt />,
+    icon: <LocalSendIcon />,
     // The function triggered when your plugin unloads
     onDismount() {
       console.log("Unloading");
