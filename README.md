@@ -53,8 +53,11 @@ You can customize these settings through the plugin interface.
 
 ## TODO
 
-- [ ] Confortable way of sending files, e.g. choosing screenshot in steam game overview:P
-- [x] Transfer history
+- None Currently
+
+## Known Issues
+
+- Sometimes plugin cannot detect other machine(Plugin need scan almost 20s,if not found, consider restarting remote localsend client.)
 
 ## Acknowledgments
 
