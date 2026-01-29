@@ -68,37 +68,72 @@ class Plugin:
         """Load plugin settings from disk"""
         try:
             os.makedirs(decky.DECKY_PLUGIN_SETTINGS_DIR, exist_ok=True)
-            if os.path.exists(self.settings_path):
-                with open(self.settings_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                self.legacy_mode = bool(data.get("legacy_mode", self.legacy_mode))
-                self.use_mixed_scan = bool(data.get("use_mixed_scan", self.use_mixed_scan))
-                self.skip_notify = bool(data.get("skip_notify", self.skip_notify))
-                self.multicast_address = str(data.get("multicast_address", self.multicast_address)).strip()
-                multicast_port = data.get("multicast_port", self.multicast_port)
-                try:
-                    self.multicast_port = int(multicast_port or 0)
-                except (ValueError, TypeError):
-                    self.multicast_port = 53317
-                self.pin = str(data.get("pin", "")).strip()
-                self.auto_save = bool(data.get("auto_save", self.auto_save))
-                self.use_https = bool(data.get("use_https", self.use_https))
-                self.notify_on_download = bool(data.get("notify_on_download", self.notify_on_download))
-                self.save_receive_history = bool(data.get("save_receive_history", self.save_receive_history))
-                self.enable_experimental = bool(data.get("enable_experimental", False))
-                upload_dir = str(data.get("download_folder", "")).strip()
-                if upload_dir:
-                    self.upload_dir = upload_dir
+            
+            # Create default settings file if it doesn't exist
+            if not os.path.exists(self.settings_path):
+                decky.logger.info(f"Settings file not found, creating default: {self.settings_path}")
+                default_settings = {
+                    "legacy_mode": self.legacy_mode,
+                    "use_mixed_scan": self.use_mixed_scan,
+                    "skip_notify": self.skip_notify,
+                    "multicast_address": self.multicast_address,
+                    "multicast_port": self.multicast_port,
+                    "pin": self.pin,
+                    "auto_save": self.auto_save,
+                    "use_https": self.use_https,
+                    "notify_on_download": self.notify_on_download,
+                    "save_receive_history": self.save_receive_history,
+                    "enable_experimental": False,
+                    "download_folder": self.upload_dir,
+                }
+                with open(self.settings_path, "w", encoding="utf-8") as f:
+                    json.dump(default_settings, f, ensure_ascii=True, indent=2)
+                decky.logger.info("Default settings file created")
+                
+            
+            # Load existing settings
+            with open(self.settings_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            self.legacy_mode = bool(data.get("legacy_mode", self.legacy_mode))
+            self.use_mixed_scan = bool(data.get("use_mixed_scan", self.use_mixed_scan))
+            self.skip_notify = bool(data.get("skip_notify", self.skip_notify))
+            self.multicast_address = str(data.get("multicast_address", self.multicast_address)).strip()
+            multicast_port = data.get("multicast_port", self.multicast_port)
+            try:
+                self.multicast_port = int(multicast_port or 0)
+            except (ValueError, TypeError):
+                self.multicast_port = 53317
+            self.pin = str(data.get("pin", "")).strip()
+            self.auto_save = bool(data.get("auto_save", self.auto_save))
+            self.use_https = bool(data.get("use_https", self.use_https))
+            self.notify_on_download = bool(data.get("notify_on_download", self.notify_on_download))
+            self.save_receive_history = bool(data.get("save_receive_history", self.save_receive_history))
+            self.enable_experimental = bool(data.get("enable_experimental", False))
+            upload_dir = str(data.get("download_folder", "")).strip()
+            if upload_dir:
+                self.upload_dir = upload_dir
+            decky.logger.info("Settings loaded successfully")
         except Exception as e:
             decky.logger.warning(f"Failed to load settings: {e}")
 
     def _load_receive_history(self):
         """Load file receive history from disk"""
         try:
-            if os.path.exists(self.receive_history_path):
-                with open(self.receive_history_path, "r", encoding="utf-8") as f:
-                    self.receive_history = json.load(f)
-                decky.logger.info(f"Loaded {len(self.receive_history)} receive history records")
+            os.makedirs(decky.DECKY_PLUGIN_SETTINGS_DIR, exist_ok=True)
+            
+            # Create empty receive history file if it doesn't exist
+            if not os.path.exists(self.receive_history_path):
+                decky.logger.info(f"Receive history file not found, creating empty: {self.receive_history_path}")
+                with open(self.receive_history_path, "w", encoding="utf-8") as f:
+                    json.dump([], f, ensure_ascii=False, indent=2)
+                self.receive_history = []
+                decky.logger.info("Empty receive history file created")
+                
+            
+            # Load existing receive history
+            with open(self.receive_history_path, "r", encoding="utf-8") as f:
+                self.receive_history = json.load(f)
+            decky.logger.info(f"Loaded {len(self.receive_history)} receive history records")
         except Exception as e:
             decky.logger.warning(f"Failed to load receive history: {e}")
             self.receive_history = []
@@ -509,6 +544,12 @@ class Plugin:
         return {"running": self._is_running(), "url": self.backend_url}
 
     def _read_config_yaml(self) -> dict:
+        try:
+            os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+        except Exception as e:
+            decky.logger.error(f"Failed to create config directory: {e}")
+            return {}
+        
         if not os.path.exists(self.config_path):
             return {}
         try:
