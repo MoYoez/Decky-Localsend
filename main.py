@@ -37,10 +37,11 @@ class Plugin:
 
         # Plugin Sets
         self.pin = ""
-        self.auto_save = True
+        self.auto_save = False
         self.use_https = True
-        self.notify_on_download = False
+        self.notify_on_download = True
         self.save_receive_history = True  # New: save file receive history
+        self.enable_experimental = False
         
         # Unix Domain Socket notification server
         self.socket_path = "/tmp/localsend-notify.sock"
@@ -83,7 +84,7 @@ class Plugin:
                     "use_https": self.use_https,
                     "notify_on_download": self.notify_on_download,
                     "save_receive_history": self.save_receive_history,
-                    "enable_experimental": False,
+                    "enable_experimental": self.enable_experimental,
                     "download_folder": self.upload_dir,
                 }
                 with open(self.settings_path, "w", encoding="utf-8") as f:
