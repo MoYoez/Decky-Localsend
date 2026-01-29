@@ -54,7 +54,7 @@ import {
         </DialogBody>
         <DialogFooter>
             <DialogButton onClick={handleCancel} style={{marginTop: "10px"}}>{t("common.cancel")}</DialogButton>
-          <DialogButtonPrimary onClick={handleSubmit} disabled={!inputValue.trim()}>
+          <DialogButtonPrimary onClick={handleSubmit} disabled={!inputValue.trim()} style={{marginTop: "10px"}}>
             {t("common.confirm")}
           </DialogButtonPrimary>
         </DialogFooter>

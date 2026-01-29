@@ -25,6 +25,7 @@ import {FaEnvelope} from "react-icons/fa";
 import DevicesPanel from "./components/device";
 import { TextReceivedModal } from "./components/TextReceivedModal";
 import { ConfirmReceiveModal } from "./components/ConfirmReceiveModal";
+import { FileReceivedModal } from "./components/FileReceivedModal";
 import { BasicInputBoxModal } from "./components/basicInputBoxModal";
 
 import type { BackendStatus } from "./types/backend";
@@ -107,7 +108,8 @@ function Content() {
   const [multicastPort, setMulticastPort] = useState("");
   const [pin, setPin] = useState("");
   const [autoSave, setAutoSave] = useState(true);
-  const [applyingConfig, setApplyingConfig] = useState(false);
+  const [useHttps, setUseHttps] = useState(true);
+  const [notifyOnDownload, setNotifyOnDownload] = useState(false);
 
   useEffect(() => {
     getBackendStatus().then(setBackend).catch((error) => {
@@ -126,6 +128,8 @@ function Content() {
         setMulticastPort(result.multicast_port ? String(result.multicast_port) : "");
         setPin(result.pin ?? "");
         setAutoSave(!!result.auto_save);
+        setUseHttps(result.use_https !== false);
+        setNotifyOnDownload(!!result.notify_on_download);
       })
       .catch((error) => {
         toaster.toast({
@@ -138,7 +142,7 @@ function Content() {
 
   const { handleToggleBackend } = createBackendHandlers(setBackend);
   
-  const { handleScan } = createDeviceHandlers(backend, setDevices, setLoading);
+  const { handleScan } = createDeviceHandlers(backend, setDevices, setLoading, selectedDevice, setSelectedDevice);
   
   const { handleFileSelect, handleFolderSelect } = createFileHandlers(addFile, uploading);
   
@@ -215,6 +219,8 @@ function Content() {
       setMulticastPort(result.multicast_port ? String(result.multicast_port) : "");
       setPin(result.pin ?? "");
       setAutoSave(!!result.auto_save);
+      setUseHttps(result.use_https !== false);
+      setNotifyOnDownload(!!result.notify_on_download);
     } catch (error) {
       console.error("Failed to reload config:", error);
     }
@@ -230,6 +236,8 @@ function Content() {
     multicast_port?: string;
     pin?: string;
     auto_save?: boolean;
+    use_https?: boolean;
+    notify_on_download?: boolean;
   }) => {
     try {
       const currentScanMode = updates.scan_mode ?? scanMode;
@@ -244,6 +252,8 @@ function Content() {
         multicast_port: updates.multicast_port ?? multicastPort,
         pin: updates.pin ?? pin,
         auto_save: updates.auto_save ?? autoSave,
+        use_https: updates.use_https ?? useHttps,
+        notify_on_download: updates.notify_on_download ?? notifyOnDownload,
       });
       if (!result.success) {
         throw new Error(result.error ?? "Unknown error");
@@ -252,7 +262,7 @@ function Content() {
       await reloadConfig();
       toaster.toast({
         title: t("config.configSaved"),
-        body: result.restarted ? t("config.backendRestarted") : t("config.restartToTakeEffect"),
+        body:  t("config.restartToTakeEffect"),
       });
     } catch (error) {
       toaster.toast({
@@ -339,50 +349,16 @@ function Content() {
     await saveConfig({ auto_save: checked });
   };
 
-  const handleApplyConfig = async () => {
-    setApplyingConfig(true);
-    try {
-      const scanModeFlags = scanModeToConfig(scanMode);
-      const result = await setBackendConfig({
-        alias: configAlias,
-        download_folder: downloadFolder,
-        legacy_mode: scanModeFlags.legacy_mode,
-        use_mixed_scan: scanModeFlags.use_mixed_scan,
-        skip_notify: skipNotify,
-        multicast_address: multicastAddress,
-        multicast_port: multicastPort,
-        pin,
-        auto_save: autoSave,
-      });
-      if (!result.success) {
-        throw new Error(result.error ?? "Unknown error");
-      }
-      // Reload config from backend to ensure UI is in sync
-      await reloadConfig();
-      toaster.toast({
-        title: t("config.configUpdated"),
-        body: t("config.restartToTakeEffect"),
-      });
-    } catch (error) {
-      toaster.toast({
-        title: t("toast.failedUpdateConfig"),
-        body: `${error}`,
-      });
-    } finally {
-      setApplyingConfig(false);
-    }
-  };
-  
-  // Handle reset button
-  const handleReset = () => {
-    resetAll();
-    setUploadProgress([]);
-    toaster.toast({
-      title: t("settings.resetComplete"),
-      body: t("settings.allDataCleared"),
-    });
+  const handleToggleUseHttps = async (checked: boolean) => {
+    setUseHttps(checked);
+    await saveConfig({ use_https: checked });
   };
 
+  const handleToggleNotifyOnDownload = async (checked: boolean) => {
+    setNotifyOnDownload(checked);
+    await saveConfig({ notify_on_download: checked });
+  };
+  
   // Handle factory reset
   const handleFactoryReset = () => {
     const modal = showModal(
@@ -404,6 +380,8 @@ function Content() {
               setMulticastPort("");
               setPin("");
               setAutoSave(true);
+              setUseHttps(true);
+              setNotifyOnDownload(false);
               setBackend({ running: false, url: "https://127.0.0.1:53317" });
               resetAll();
               setUploadProgress([]);
@@ -441,11 +419,6 @@ function Content() {
         <PanelSectionRow>
           <ButtonItem layout="below" onClick={handleScan} disabled={loading}>
             {loading ? t("backend.scanning") : t("backend.scanDevices")}
-          </ButtonItem>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ButtonItem layout="below" onClick={handleScan} disabled={loading}>
-            {t("backend.refreshDevices")}
           </ButtonItem>
         </PanelSectionRow>
       </PanelSection>
@@ -643,20 +616,26 @@ function Content() {
           />
         </PanelSectionRow>
         <PanelSectionRow>
-          <ButtonItem layout="below" onClick={handleApplyConfig} disabled={applyingConfig}>
-            {t("config.apply")}
-          </ButtonItem>
+          <ToggleField
+            label={t("config.useHttps")}
+            description={t("config.useHttpsDesc")}
+            checked={useHttps}
+            onChange={handleToggleUseHttps}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ToggleField
+            label={t("config.notifyOnDownload")}
+            description={t("config.notifyOnDownloadDesc")}
+            checked={notifyOnDownload}
+            onChange={handleToggleNotifyOnDownload}
+          />
         </PanelSectionRow>
       </PanelSection>
       <PanelSection title={t("settings.title")}>
         <PanelSectionRow>
-          <ButtonItem layout="below" onClick={handleReset}>
-            {t("settings.resetAllData")}
-          </ButtonItem>
-        </PanelSectionRow>
-        <PanelSectionRow>
           <ButtonItem layout="below" onClick={handleFactoryReset}>
-            {t("settings.factoryReset")}
+            {t("settings.resetAllData")}
           </ButtonItem>
         </PanelSectionRow>
       </PanelSection>
@@ -777,6 +756,20 @@ export default definePlugin(() => {
     );
   });
 
+  // Listen for file received events from backend
+  const FileReceivedListener = addEventListener("file_received", (event: { title: string; folderPath: string; fileCount: number; files: string[] }) => {
+    const modalResult = showModal(
+      <FileReceivedModal
+        title={event.title}
+        folderPath={event.folderPath}
+        fileCount={event.fileCount}
+        files={event.files}
+        onClose={() => {}}
+        closeModal={() => modalResult.Close()}
+      />
+    );
+  });
+
   return {
     // The name shown in various decky menus
     name: "LocalSend",
@@ -791,6 +784,7 @@ export default definePlugin(() => {
       console.log("Unloading");
       removeEventListener("unix_socket_notification", EmitEventListener);
       removeEventListener("text_received", TextReceivedListener);
+      removeEventListener("file_received", FileReceivedListener);
       routerHook.removeRoute("/decky-localsend-about");
     },
   };

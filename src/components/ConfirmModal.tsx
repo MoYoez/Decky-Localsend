@@ -46,8 +46,8 @@ export const ConfirmModal = ({
         </div>
       </DialogBody>
       <DialogFooter>
-        <DialogButton onClick={handleCancel}>{cancelText}</DialogButton>
-        <DialogButtonPrimary onClick={handleConfirm}>{confirmText}</DialogButtonPrimary>
+        <DialogButton onClick={handleCancel} style={{marginTop: "10px"}}>{cancelText}</DialogButton>
+        <DialogButtonPrimary onClick={handleConfirm} style={{marginTop: "10px"}}>{confirmText}</DialogButtonPrimary>
       </DialogFooter>
     </ModalRoot>
   );

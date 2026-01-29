@@ -50,8 +50,8 @@ export const ConfirmReceiveModal = ({
         )}
       </DialogBody>
       <DialogFooter>
-        <DialogButton onClick={() => handleConfirm(false)}>{t("confirmReceive.reject")}</DialogButton>
-        <DialogButtonPrimary onClick={() => handleConfirm(true)}>{t("confirmReceive.accept")}</DialogButtonPrimary>
+        <DialogButton onClick={() => handleConfirm(false)} style={{marginTop: "10px"}}>{t("confirmReceive.reject")}</DialogButton>
+        <DialogButtonPrimary onClick={() => handleConfirm(true)} style={{marginTop: "10px"}}>{t("confirmReceive.accept")}</DialogButtonPrimary>
       </DialogFooter>
     </ModalRoot>
   );

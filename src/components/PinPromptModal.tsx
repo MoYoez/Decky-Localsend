@@ -52,7 +52,7 @@ export const PinPromptModal = ({
       </DialogBody>
       <DialogFooter>
         <DialogButton onClick={handleCancel} style={{marginTop: "10px"}}>{t("common.cancel")}</DialogButton>
-        <DialogButtonPrimary onClick={handleSubmit} disabled={!pin.trim()}>
+        <DialogButtonPrimary onClick={handleSubmit} disabled={!pin.trim()} style={{marginTop: "10px"}}>
           {t("common.confirm")}
         </DialogButtonPrimary>
       </DialogFooter>

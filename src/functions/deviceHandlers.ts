@@ -6,7 +6,9 @@ import type { ScanDevice } from "../types/devices";
 export const createDeviceHandlers = (
   backend: BackendStatus,
   setDevices: (devices: ScanDevice[]) => void,
-  setLoading: (loading: boolean) => void
+  setLoading: (loading: boolean) => void,
+  selectedDevice: ScanDevice | null,
+  setSelectedDevice: (device: ScanDevice | null) => void
 ) => {
   const handleScan = async () => {
     if (!backend.running) {
@@ -17,12 +19,31 @@ export const createDeviceHandlers = (
       return;
     }
     setLoading(true);
+
+    setDevices([]);
+    setSelectedDevice(null);
+    
     try {
       const result = await proxyGet("/api/self/v1/scan-current");
       if (result.status !== 200) {
         throw new Error(`Scan failed: ${result.status}`);
       }
-      setDevices(result.data?.data ?? []);
+      const newDevices: ScanDevice[] = result.data?.data ?? [];
+      setDevices(newDevices);
+      
+      if (selectedDevice) {
+        const stillExists = newDevices.some(
+          (d) => d.fingerprint === selectedDevice.fingerprint
+        );
+        if (stillExists) {
+
+          const updatedDevice = newDevices.find(
+            (d) => d.fingerprint === selectedDevice.fingerprint
+          );
+          setSelectedDevice(updatedDevice ?? null);
+        }
+ 
+      }
     } catch (error) {
       toaster.toast({
         title: "Scan failed",

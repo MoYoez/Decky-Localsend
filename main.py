@@ -21,11 +21,9 @@ class Plugin:
         self.process = None
         self.log_file = None
         self.backend_port = 53317
-        self.backend_protocol = "https"
         self.config_path = os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "localsend.yaml")
         self.upload_dir = os.path.join(decky.DECKY_PLUGIN_RUNTIME_DIR, "uploads")
         self.binary_path = os.path.join(decky.DECKY_PLUGIN_DIR, "bin", "localsend-core")
-        self.backend_url = f"{self.backend_protocol}://127.0.0.1:{self.backend_port}"
         self.settings_path = os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "plugin-settings.json")
 
         # Scan Config
@@ -39,6 +37,8 @@ class Plugin:
         # Plugin Sets
         self.pin = ""
         self.auto_save = True
+        self.use_https = True
+        self.notify_on_download = False
         
         # Unix Domain Socket notification server
         self.socket_path = "/tmp/localsend-notify.sock"
@@ -50,6 +50,12 @@ class Plugin:
         self.upload_sessions: Dict[str, Dict[str, Any]] = {}
 
         self._load_settings()
+
+    @property
+    def backend_url(self) -> str:
+        """Dynamically compute backend URL based on use_https setting"""
+        protocol = "https" if self.use_https else "http"
+        return f"{protocol}://127.0.0.1:{self.backend_port}"
 
     def _load_settings(self):
         """Load plugin settings from disk"""
@@ -69,6 +75,8 @@ class Plugin:
                     self.multicast_port = 0
                 self.pin = str(data.get("pin", "")).strip()
                 self.auto_save = bool(data.get("auto_save", self.auto_save))
+                self.use_https = bool(data.get("use_https", self.use_https))
+                self.notify_on_download = bool(data.get("notify_on_download", self.notify_on_download))
                 upload_dir = str(data.get("download_folder", "")).strip()
                 if upload_dir:
                     self.upload_dir = upload_dir
@@ -89,6 +97,8 @@ class Plugin:
                         "multicast_port": self.multicast_port,
                         "pin": self.pin,
                         "auto_save": self.auto_save,
+                        "use_https": self.use_https,
+                        "notify_on_download": self.notify_on_download,
                         "download_folder": self.upload_dir,
                     },
                     f,
@@ -307,6 +317,27 @@ class Plugin:
                     file_session['end_time'] = time.time()
                     duration = file_session['end_time'] - file_session.get('start_time', 0)
                     decky.logger.info(f"   Upload duration: {duration:.2f} seconds")
+                
+                # Send file received notification if enabled and not text-only
+                if self.notify_on_download and not is_text_only:
+                    try:
+                        folder_path = os.path.join(self.upload_dir, session_id)
+                        files_in_folder = []
+                        if os.path.isdir(folder_path):
+                            files_in_folder = os.listdir(folder_path)
+                        
+                        asyncio.run_coroutine_threadsafe(
+                            decky.emit("file_received", {
+                                "title": title or "File Received",
+                                "folderPath": folder_path,
+                                "fileCount": len(files_in_folder),
+                                "files": files_in_folder
+                            }),
+                            self.loop
+                        )
+                        decky.logger.info(f"📁 File received notification sent: {folder_path}")
+                    except Exception as e:
+                        decky.logger.error(f"Failed to send file received notification: {e}")
                     
             elif notification_type == 'info':
                 decky.logger.info(f"ℹ️  {title}: {message}")
@@ -343,7 +374,7 @@ class Plugin:
             "-useDefaultUploadFolder",
             self.upload_dir,
             "-useReferNetworkInterface",
-            "*",
+            "*", # set to all
         ]
         if self.multicast_address:
             cmd.extend(["-useMultcastAddress", self.multicast_address])
@@ -358,6 +389,7 @@ class Plugin:
         if self.pin:
             cmd.extend(["-usePin", self.pin])
         cmd.append(f"-useAutoSave={'true' if self.auto_save else 'false'}")
+        cmd.append(f"-useHttps={'true' if self.use_https else 'false'}")
 
         self.process = subprocess.Popen(
             cmd,
@@ -632,6 +664,8 @@ class Plugin:
             "multicast_port": self.multicast_port,
             "pin": self.pin,
             "auto_save": self.auto_save,
+            "use_https": self.use_https,
+            "notify_on_download": self.notify_on_download,
         }
 
     async def set_backend_config(self, config: dict):
@@ -644,6 +678,8 @@ class Plugin:
         multicast_port_raw = config.get("multicast_port", 0)
         pin = str(config.get("pin", "")).strip()
         auto_save = bool(config.get("auto_save", True))
+        use_https = bool(config.get("use_https", True))
+        notify_on_download = bool(config.get("notify_on_download", False))
 
         self._update_config_yaml({"alias": alias})
 
@@ -660,6 +696,8 @@ class Plugin:
             self.multicast_port = 0
         self.pin = pin
         self.auto_save = auto_save
+        self.use_https = use_https
+        self.notify_on_download = notify_on_download
 
         self._save_settings()
         self._ensure_dirs()
@@ -742,6 +780,8 @@ class Plugin:
             self.multicast_port = 53317
             self.pin = ""
             self.auto_save = True
+            self.use_https = True
+            self.notify_on_download = False
             self.upload_dir = os.path.join(decky.DECKY_PLUGIN_RUNTIME_DIR, "uploads")
             
             # Clear upload sessions

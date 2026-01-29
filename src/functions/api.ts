@@ -41,6 +41,8 @@ export const getBackendConfig = callable<
     multicast_port: number;
     pin: string;
     auto_save: boolean;
+    use_https: boolean;
+    notify_on_download: boolean;
   }
 >("get_backend_config");
 
@@ -56,6 +58,8 @@ export const setBackendConfig = callable<
       multicast_port: number | string;
       pin: string;
       auto_save: boolean;
+      use_https: boolean;
+      notify_on_download: boolean;
     }
   ],
   { success: boolean; restarted: boolean; running: boolean; error?: string }

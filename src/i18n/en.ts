@@ -59,6 +59,10 @@ export const en = {
     clearPinMessage: "Are you sure you want to clear the PIN?",
     autoSave: "Auto Save",
     autoSaveDesc: "If disabled, require confirmation before receiving",
+    useHttps: "Use Encrypted Connection",
+    useHttpsDesc: "Enable encrypted connection (HTTPS). Disable for unencrypted (HTTP)",
+    notifyOnDownload: "Notify on Download Complete",
+    notifyOnDownloadDesc: "Show notification when file download is complete",
     apply: "APPLY",
     configSaved: "Config saved",
     backendRestarted: "Backend restarted",
@@ -70,12 +74,11 @@ export const en = {
   settings: {
     title: "Settings",
     resetAllData: "Reset All Data",
-    factoryReset: "Factory Reset",
-    factoryResetTitle: "Factory Reset",
+    factoryResetTitle: "Reset All Data",
     factoryResetMessage: "Are you sure you want to reset all settings to default?\n\nThis will delete all configuration files and stop the backend.",
     resetComplete: "Reset Complete",
     allDataCleared: "All data has been cleared",
-    factoryResetComplete: "Factory Reset Complete",
+    factoryResetComplete: "Reset Complete",
     allSettingsReset: "All settings have been reset to default",
   },
 
@@ -125,7 +128,7 @@ export const en = {
     failedSelectFolder: "Failed to select folder",
     failedSaveConfig: "Failed to save config",
     failedUpdateConfig: "Failed to update config",
-    factoryResetFailed: "Factory Reset Failed",
+    factoryResetFailed: "Reset Failed",
     confirmFailed: "Confirm failed",
     missingSessionId: "Missing sessionId",
     accepted: "Accepted",
@@ -150,6 +153,16 @@ export const en = {
   textReceived: {
     copyToClipboard: "Copy to Clipboard",
     copied: "Copied!",
+    close: "Close",
+  },
+
+  // File Received Modal
+  fileReceived: {
+    folderPath: "Folder Path",
+    fileCount: "File Count",
+    files: "Files",
+    copyPath: "Copy Path",
+    pathCopied: "Path Copied!",
     close: "Close",
   },
 };

@@ -61,6 +61,10 @@ export const zhCN: TranslationKeys = {
     clearPinMessage: "确定要清除 PIN 码吗？",
     autoSave: "自动保存",
     autoSaveDesc: "关闭后，接收文件前需要确认",
+    useHttps: "使用加密",
+    useHttpsDesc: "启用加密连接 (HTTPS)。关闭后使用非加密连接 (HTTP)",
+    notifyOnDownload: "下载完成后提示",
+    notifyOnDownloadDesc: "文件下载完成后显示通知",
     apply: "应用",
     configSaved: "配置已保存",
     backendRestarted: "后端已重启",
@@ -72,12 +76,11 @@ export const zhCN: TranslationKeys = {
   settings: {
     title: "设置",
     resetAllData: "重置所有数据",
-    factoryReset: "恢复出厂设置",
-    factoryResetTitle: "恢复出厂设置",
+    factoryResetTitle: "重置所有数据",
     factoryResetMessage: "确定要将所有设置重置为默认值吗？这将删除所有配置文件并停止后端。",
     resetComplete: "重置完成",
     allDataCleared: "所有数据已清除",
-    factoryResetComplete: "恢复出厂设置完成",
+    factoryResetComplete: "重置完成",
     allSettingsReset: "所有设置已重置为默认值",
   },
 
@@ -127,7 +130,7 @@ export const zhCN: TranslationKeys = {
     failedSelectFolder: "选择文件夹失败",
     failedSaveConfig: "保存配置失败",
     failedUpdateConfig: "更新配置失败",
-    factoryResetFailed: "恢复出厂设置失败",
+    factoryResetFailed: "重置失败",
     confirmFailed: "确认失败",
     missingSessionId: "缺少会话ID",
     accepted: "已接受",
@@ -152,6 +155,16 @@ export const zhCN: TranslationKeys = {
   textReceived: {
     copyToClipboard: "复制到剪贴板",
     copied: "已复制！",
+    close: "关闭",
+  },
+
+  // File Received Modal
+  fileReceived: {
+    folderPath: "文件夹路径",
+    fileCount: "文件数量",
+    files: "文件列表",
+    copyPath: "复制路径",
+    pathCopied: "路径已复制！",
     close: "关闭",
   },
 };

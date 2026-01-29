@@ -11,32 +11,34 @@ import { toaster } from "@decky/api";
 import { copyToClipboard } from "../utils/copyClipBoard";
 import { t } from "../i18n";
 
-interface TextReceivedModalProps {
+interface FileReceivedModalProps {
   title: string;
-  content: string;
-  fileName: string;
+  folderPath: string;
+  fileCount: number;
+  files: string[];
   onClose: () => void;
   closeModal?: () => void;
 }
 
 /**
- * Modal component for displaying received text content
- * Shows text with preview and copy option
+ * Modal component for displaying file download completion notification
+ * Shows folder path with copy option
  */
-export const TextReceivedModal = ({ 
+export const FileReceivedModal = ({ 
   title, 
-  content, 
-  fileName,
+  folderPath,
+  fileCount,
+  files,
   onClose,
   closeModal
-}: TextReceivedModalProps) => {
+}: FileReceivedModalProps) => {
   
-  const handleCopyToClipboard = async () => {
-    const success = await copyToClipboard(content);
+  const handleCopyPath = async () => {
+    const success = await copyToClipboard(folderPath);
     
     if (success) {
       toaster.toast({
-        title: t("textReceived.copied"),
+        title: t("fileReceived.pathCopied"),
         body: "",
       });
       closeModal?.();
@@ -59,7 +61,7 @@ export const TextReceivedModal = ({
       <DialogHeader>{title}</DialogHeader>
       <DialogBody>
         <Focusable style={{ padding: '10px', maxHeight: '400px', overflowY: 'auto' }}>
-          {/* File info */}
+          {/* File count info */}
           <div style={{ 
             marginBottom: '10px', 
             paddingBottom: '10px',
@@ -70,25 +72,24 @@ export const TextReceivedModal = ({
               fontSize: '12px', 
               marginBottom: '5px' 
             }}>
-              <strong>{fileName}</strong>
-            </div>
-            <div style={{ 
-              color: '#b8b6b4', 
-              fontSize: '12px' 
-            }}>
-              {content.length} characters
+              <strong>{t("fileReceived.fileCount")}: {fileCount}</strong>
             </div>
           </div>
 
-          {/* Content preview */}
+          {/* Folder path */}
           <div style={{ marginBottom: '10px' }}>
+            <div style={{ 
+              color: '#b8b6b4', 
+              fontSize: '12px', 
+              marginBottom: '5px' 
+            }}>
+              {t("fileReceived.folderPath")}:
+            </div>
             <div style={{
               padding: '12px',
               backgroundColor: '#0e0e0e',
               border: '1px solid #3d3d3d',
               borderRadius: '4px',
-              maxHeight: '250px',
-              overflowY: 'auto',
               fontSize: '13px',
               fontFamily: 'monospace',
               whiteSpace: 'pre-wrap',
@@ -96,17 +97,48 @@ export const TextReceivedModal = ({
               lineHeight: '1.5',
               color: '#e8e8e8',
             }}>
-              {content}
+              {folderPath}
             </div>
           </div>
+
+          {/* File list */}
+          {files.length > 0 && (
+            <div style={{ marginBottom: '10px' }}>
+              <div style={{ 
+                color: '#b8b6b4', 
+                fontSize: '12px', 
+                marginBottom: '5px' 
+              }}>
+                {t("fileReceived.files")}:
+              </div>
+              <div style={{
+                padding: '12px',
+                backgroundColor: '#0e0e0e',
+                border: '1px solid #3d3d3d',
+                borderRadius: '4px',
+                maxHeight: '150px',
+                overflowY: 'auto',
+                fontSize: '12px',
+                fontFamily: 'monospace',
+                lineHeight: '1.5',
+                color: '#e8e8e8',
+              }}>
+                {files.map((file, index) => (
+                  <div key={index} style={{ marginBottom: '2px' }}>
+                    • {file}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </Focusable>
       </DialogBody>
       <DialogFooter>
         <DialogButton onClick={handleClose} style={{marginTop: "10px"}}>
-          {t("textReceived.close")}
+          {t("fileReceived.close")}
         </DialogButton>
-        <DialogButtonPrimary onClick={handleCopyToClipboard} style={{marginTop: "10px"}}>
-          {t("textReceived.copyToClipboard")}
+        <DialogButtonPrimary onClick={handleCopyPath} style={{marginTop: "10px"}}>
+          {t("fileReceived.copyPath")}
         </DialogButtonPrimary>
       </DialogFooter>
     </ModalRoot>
