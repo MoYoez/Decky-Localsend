@@ -182,6 +182,10 @@ export const zhCN: TranslationKeys = {
     copyPath: "复制路径",
     pathCopied: "路径已复制！",
     close: "关闭",
+    total: "总计",
+    success: "成功",
+    failed: "失败",
+    failedFileIds: "失败文件",
   },
 
   // Receive History

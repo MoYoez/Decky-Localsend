@@ -970,13 +970,26 @@ export default definePlugin(() => {
   });
 
   // Listen for file received events from backend
-  const FileReceivedListener = addEventListener("file_received", (event: { title: string; folderPath: string; fileCount: number; files: string[] }) => {
+  const FileReceivedListener = addEventListener("file_received", (event: { 
+    title: string; 
+    folderPath: string; 
+    fileCount: number; 
+    files: string[];
+    totalFiles?: number;
+    successFiles?: number;
+    failedFiles?: number;
+    failedFileIds?: string[];
+  }) => {
     const modalResult = showModal(
       <FileReceivedModal
         title={event.title}
         folderPath={event.folderPath}
         fileCount={event.fileCount}
         files={event.files}
+        totalFiles={event.totalFiles}
+        successFiles={event.successFiles}
+        failedFiles={event.failedFiles}
+        failedFileIds={event.failedFileIds}
         onClose={() => {}}
         closeModal={() => modalResult.Close()}
       />

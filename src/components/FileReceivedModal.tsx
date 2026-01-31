@@ -16,6 +16,10 @@ interface FileReceivedModalProps {
   folderPath: string;
   fileCount: number;
   files: string[];
+  totalFiles?: number;
+  successFiles?: number;
+  failedFiles?: number;
+  failedFileIds?: string[];
   onClose: () => void;
   closeModal?: () => void;
 }
@@ -29,9 +33,14 @@ export const FileReceivedModal = ({
   folderPath,
   fileCount,
   files,
+  totalFiles,
+  successFiles,
+  failedFiles,
+  failedFileIds,
   onClose,
   closeModal
 }: FileReceivedModalProps) => {
+  const hasFailures = failedFiles !== undefined && failedFiles > 0;
   
   const handleCopyPath = async () => {
     const success = await copyToClipboard(folderPath);
@@ -74,6 +83,15 @@ export const FileReceivedModal = ({
             }}>
               <strong>{t("fileReceived.fileCount")}: {fileCount}</strong>
             </div>
+            {totalFiles !== undefined && (
+              <div style={{ 
+                color: hasFailures ? '#ff6b6b' : '#b8b6b4', 
+                fontSize: '12px', 
+                marginTop: '5px' 
+              }}>
+                {t("fileReceived.total")}: {totalFiles} | {t("fileReceived.success")}: {successFiles} | {t("fileReceived.failed")}: {failedFiles}
+              </div>
+            )}
           </div>
 
           {/* Folder path */}
@@ -126,6 +144,37 @@ export const FileReceivedModal = ({
                 {files.map((file, index) => (
                   <div key={index} style={{ marginBottom: '2px' }}>
                     • {file}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Failed files list */}
+          {hasFailures && failedFileIds && failedFileIds.length > 0 && (
+            <div style={{ marginBottom: '10px' }}>
+              <div style={{ 
+                color: '#ff6b6b', 
+                fontSize: '12px', 
+                marginBottom: '5px' 
+              }}>
+                {t("fileReceived.failedFileIds")}:
+              </div>
+              <div style={{
+                padding: '12px',
+                backgroundColor: '#1a0e0e',
+                border: '1px solid #5d3d3d',
+                borderRadius: '4px',
+                maxHeight: '100px',
+                overflowY: 'auto',
+                fontSize: '12px',
+                fontFamily: 'monospace',
+                lineHeight: '1.5',
+                color: '#ff9999',
+              }}>
+                {failedFileIds.map((fileId, index) => (
+                  <div key={index} style={{ marginBottom: '2px' }}>
+                    • {fileId}
                   </div>
                 ))}
               </div>

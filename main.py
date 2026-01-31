@@ -250,36 +250,73 @@ class Plugin:
             })
             
             session_id = notification_data.get('sessionId', '')
-            file_id = notification_data.get('fileId', '')
-            file_name = notification_data.get('fileName', '')
-            file_size = notification_data.get('size', 0)
-            file_type = notification_data.get('fileType', '')
-            sha256 = notification_data.get('sha256', '')
             
             if notification_type == 'upload_start':
-                decky.logger.info(f"📤 Upload started: {file_name} (size: {file_size} bytes)")
-                decky.logger.info(f"   Session ID: {session_id}, File ID: {file_id}")
+                # New format: session-level with files array
+                total_files = notification_data.get('totalFiles', 0)
+                total_size = notification_data.get('totalSize', 0)
+                files = notification_data.get('files', [])
                 
-                # Save upload session information
+                decky.logger.info(f"📤 Upload session started: {session_id}")
+                decky.logger.info(f"   Total files: {total_files}, Total size: {total_size} bytes")
+                
+                # Initialize session
                 if session_id not in self.upload_sessions:
-                    self.upload_sessions[session_id] = {}
+                    self.upload_sessions[session_id] = {
+                        '_meta': {
+                            'total_files': total_files,
+                            'total_size': total_size,
+                            'start_time': time.time(),
+                            'is_text_only': is_text_only
+                        }
+                    }
                 
-                self.upload_sessions[session_id][file_id] = {
-                    'file_id': file_id,
-                    'file_name': file_name,
-                    'file_size': file_size,
-                    'file_type': file_type,
-                    'sha256': sha256,
-                    'start_time': time.time(),
-                    'status': 'uploading',
-                    'is_text_only': is_text_only
-                }
+                # Save each file's information
+                for file_info in files:
+                    file_id = file_info.get('fileId', '')
+                    file_name = file_info.get('fileName', '')
+                    file_size = file_info.get('size', 0)
+                    file_type = file_info.get('fileType', '')
+                    
+                    decky.logger.info(f"   - {file_name} ({file_size} bytes, {file_type})")
+                    
+                    self.upload_sessions[session_id][file_id] = {
+                        'file_id': file_id,
+                        'file_name': file_name,
+                        'file_size': file_size,
+                        'file_type': file_type,
+                        'start_time': time.time(),
+                        'status': 'uploading',
+                        'is_text_only': is_text_only
+                    }
                 
             elif notification_type == 'upload_end':
-                decky.logger.info(f"✅ Upload completed: {file_name} (size: {file_size} bytes)")
-                decky.logger.info(f"   Session ID: {session_id}, SHA256: {sha256}")
+                # New format: session-level summary
+                total_files = notification_data.get('totalFiles', 0)
+                success_files = notification_data.get('successFiles', 0)
+                failed_files = notification_data.get('failedFiles', 0)
+                failed_file_ids = notification_data.get('failedFileIds', [])
                 
-                # Check if this is a text-only notification
+                decky.logger.info(f"✅ Upload session completed: {session_id}")
+                decky.logger.info(f"   Total: {total_files}, Success: {success_files}, Failed: {failed_files}")
+                if failed_file_ids:
+                    decky.logger.info(f"   Failed file IDs: {failed_file_ids}")
+                
+                # Update upload session status for all files
+                if session_id in self.upload_sessions:
+                    for fid, file_session in self.upload_sessions[session_id].items():
+                        # Skip metadata entry
+                        if fid == '_meta':
+                            continue
+                        if fid in failed_file_ids:
+                            file_session['status'] = 'failed'
+                        else:
+                            file_session['status'] = 'completed'
+                        file_session['end_time'] = time.time()
+                        duration = file_session['end_time'] - file_session.get('start_time', 0)
+                        decky.logger.info(f"   File {fid}: {file_session['status']} ({duration:.2f}s)")
+                
+                # Check if this is a text-only session
                 if is_text_only:
                     decky.logger.info(f"📝 Text-only notification detected")
                     # Read text content from uploaded file
@@ -314,17 +351,8 @@ class Plugin:
                             decky.logger.warning(f"Text file not found: {file_path}")
                     except Exception as e:
                         decky.logger.error(f"Failed to read text content: {e}")
-                
-                # Update upload session status
-                if session_id in self.upload_sessions and file_id in self.upload_sessions[session_id]:
-                    file_session = self.upload_sessions[session_id][file_id]
-                    file_session['status'] = 'completed'
-                    file_session['end_time'] = time.time()
-                    duration = file_session['end_time'] - file_session.get('start_time', 0)
-                    decky.logger.info(f"   Upload duration: {duration:.2f} seconds")
-                
-                # Send file received notification if enabled and not text-only
-                if not is_text_only:
+                else:
+                    # Send file received notification if enabled
                     try:
                         folder_path = os.path.join(self.upload_dir, session_id)
                         files_in_folder = []
@@ -341,7 +369,11 @@ class Plugin:
                                     "title": title or "File Received",
                                     "folderPath": folder_path,
                                     "fileCount": len(files_in_folder),
-                                    "files": files_in_folder
+                                    "files": files_in_folder,
+                                    "totalFiles": total_files,
+                                    "successFiles": success_files,
+                                    "failedFiles": failed_files,
+                                    "failedFileIds": failed_file_ids
                                 }),
                                 self.loop
                             )
@@ -500,6 +532,9 @@ class Plugin:
         sessions = []
         for session_id, files in self.upload_sessions.items():
             for file_id, file_data in files.items():
+                # Skip metadata entry
+                if file_id == '_meta':
+                    continue
                 sessions.append({
                     'session_id': session_id,
                     **file_data

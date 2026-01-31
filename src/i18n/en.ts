@@ -180,6 +180,10 @@ export const en = {
     copyPath: "Copy Path",
     pathCopied: "Path Copied!",
     close: "Close",
+    total: "Total",
+    success: "Success",
+    failed: "Failed",
+    failedFileIds: "Failed Files",
   },
 
   // Receive History
