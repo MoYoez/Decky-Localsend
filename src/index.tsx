@@ -97,7 +97,8 @@ function Content() {
     running: false,
     url: "https://127.0.0.1:53317",
   });
-  const [loading, setLoading] = useState(false);
+  const [refreshLoading, setRefreshLoading] = useState(false);
+  const [scanLoading, setScanLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
   const [uploading, setUploading] = useState(false);
   const [configAlias, setConfigAlias] = useState("");
@@ -174,7 +175,7 @@ function Content() {
 
   const { handleToggleBackend } = createBackendHandlers(setBackend);
   
-  const { handleScan } = createDeviceHandlers(backend, setDevices, setLoading, selectedDevice, setSelectedDevice);
+  const { handleRefreshDevices, handleScanNow } = createDeviceHandlers(backend, setDevices, setRefreshLoading, setScanLoading, selectedDevice, setSelectedDevice);
   
   const { handleFileSelect, handleFolderSelect } = createFileHandlers(addFile, uploading);
   
@@ -542,8 +543,13 @@ function Content() {
           />
         </PanelSectionRow>
         <PanelSectionRow>
-          <ButtonItem layout="below" onClick={handleScan} disabled={loading}>
-            {loading ? t("backend.scanning") : t("backend.scanDevices")}
+          <ButtonItem layout="below" onClick={handleRefreshDevices} disabled={refreshLoading}>
+            {refreshLoading ? t("backend.scanning") : t("backend.refreshDevices")}
+          </ButtonItem>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={handleScanNow} disabled={scanLoading}>
+            {scanLoading ? t("backend.scanning") : t("backend.scanNow")}
           </ButtonItem>
         </PanelSectionRow>
       </PanelSection>
@@ -844,7 +850,53 @@ export default definePlugin(() => {
   // Register About page route
   routerHook.addRoute("/decky-localsend-about", About, { exact: true });
 
+  // Helper function to update device in store
+  const updateDeviceInStore = (deviceData: any) => {
+    const store = useLocalSendStore.getState();
+    const currentDevices = store.devices;
+    const fingerprint = deviceData.fingerprint;
+    
+    if (!fingerprint) return;
+    
+    const newDevice = {
+      fingerprint: deviceData.fingerprint,
+      alias: deviceData.alias,
+      ip_address: deviceData.ip_address,
+      port: deviceData.port,
+      protocol: deviceData.protocol,
+      deviceType: deviceData.deviceType,
+      deviceModel: deviceData.deviceModel,
+    };
+    
+    // Check if device already exists
+    const existingIndex = currentDevices.findIndex(d => d.fingerprint === fingerprint);
+    
+    if (existingIndex >= 0) {
+      // Update existing device
+      const updatedDevices = [...currentDevices];
+      updatedDevices[existingIndex] = { ...updatedDevices[existingIndex], ...newDevice };
+      store.setDevices(updatedDevices);
+      
+      // Update selected device if it's the same one
+      const selectedDevice = store.selectedDevice;
+      if (selectedDevice?.fingerprint === fingerprint) {
+        store.setSelectedDevice({ ...selectedDevice, ...newDevice });
+      }
+    } else {
+      // Add new device
+      store.setDevices([...currentDevices, newDevice]);
+    }
+  };
+
   const EmitEventListener = addEventListener("unix_socket_notification", (event: { type?: string; title?: string; message?: string; data?: any }) => {
+    // Handle device discovered/updated events - update device list without toast
+    if (event.type === "device_discovered" || event.type === "device_updated") {
+      const deviceData = event.data ?? {};
+      updateDeviceInStore(deviceData);
+      // Don't show toast for device events, just update the list silently
+      return;
+    }
+
     if (event.type === "confirm_recv") {
       const data = event.data ?? {};
       const sessionId = String(data.sessionId || "");
@@ -890,6 +942,11 @@ export default definePlugin(() => {
         title: event.title || t("toast.pinRequired"),
         body: event.message || t("toast.pinRequiredForFiles"),
       });
+      return;
+    }
+
+    // Skip toast for info type notifications (don't show decky info)
+    if (event.type === "info") {
       return;
     }
 

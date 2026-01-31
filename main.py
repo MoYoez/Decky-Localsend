@@ -2,18 +2,29 @@ import os
 import asyncio
 import subprocess
 import time
-import socket
 import json
-import threading
-import ssl
-import urllib.request
-import urllib.error
-import glob
-import base64
 
 from typing import Dict, Any
 
-import decky
+
+import decky  # pyright: ignore[reportMissingModuleSource]
+
+
+from http_utils import do_request, parse_response  # pyright: ignore[reportMissingImports]
+from config_utils import (  # pyright: ignore[reportMissingImports]
+    read_config_yaml,
+    update_config_yaml,
+    load_json_settings,
+    save_json_settings,
+)
+from file_utils import (  # pyright: ignore[reportMissingImports]
+    list_folder_files,
+    get_steam_screenshots,
+    load_receive_history,
+    save_receive_history,
+    create_receive_history_entry,
+)
+from notify_server import NotifyServer  # pyright: ignore[reportMissingImports]
 
 
 class Plugin:
@@ -34,21 +45,24 @@ class Plugin:
         self.multicast_address = "224.0.0.167"
         self.multicast_port = 53317
 
-
-        # Plugin Sets
+        # Plugin Settings
         self.pin = ""
         self.auto_save = False
         self.use_https = True
         self.notify_on_download = True
-        self.save_receive_history = True  # New: save file receive history
+        self.save_receive_history = True
         self.enable_experimental = False
-        self.disable_info_logging = False  # Disable INFO level logging
+        self.disable_info_logging = False
         
         # Unix Domain Socket notification server
         self.socket_path = "/tmp/localsend-notify.sock"
-        self.notify_socket = None
-        self.notify_thread = None
-        self.notify_shutdown = threading.Event()
+        self.notify_server = NotifyServer(
+            socket_path=self.socket_path,
+            logger_info=lambda msg: decky.logger.info(msg),
+            logger_error=lambda msg: decky.logger.error(msg),
+            logger_warning=lambda msg: decky.logger.warning(msg),
+        )
+        self.notify_server.set_notification_handler(self._handle_notification)
         
         # Upload session tracking
         self.upload_sessions: Dict[str, Dict[str, Any]] = {}
@@ -66,37 +80,35 @@ class Plugin:
         protocol = "https" if self.use_https else "http"
         return f"{protocol}://127.0.0.1:{self.backend_port}"
 
+    def _get_default_settings(self) -> Dict[str, Any]:
+        """Get default settings dictionary"""
+        return {
+            "legacy_mode": self.legacy_mode,
+            "use_mixed_scan": self.use_mixed_scan,
+            "skip_notify": self.skip_notify,
+            "multicast_address": self.multicast_address,
+            "multicast_port": self.multicast_port,
+            "pin": self.pin,
+            "auto_save": self.auto_save,
+            "use_https": self.use_https,
+            "notify_on_download": self.notify_on_download,
+            "save_receive_history": self.save_receive_history,
+            "enable_experimental": self.enable_experimental,
+            "disable_info_logging": self.disable_info_logging,
+            "download_folder": self.upload_dir,
+        }
+
     def _load_settings(self):
         """Load plugin settings from disk"""
         try:
             os.makedirs(decky.DECKY_PLUGIN_SETTINGS_DIR, exist_ok=True)
             
-            # Create default settings file if it doesn't exist
-            if not os.path.exists(self.settings_path):
-                decky.logger.info(f"Settings file not found, creating default: {self.settings_path}")
-                default_settings = {
-                    "legacy_mode": self.legacy_mode,
-                    "use_mixed_scan": self.use_mixed_scan,
-                    "skip_notify": self.skip_notify,
-                    "multicast_address": self.multicast_address,
-                    "multicast_port": self.multicast_port,
-                    "pin": self.pin,
-                    "auto_save": self.auto_save,
-                    "use_https": self.use_https,
-                    "notify_on_download": self.notify_on_download,
-                    "save_receive_history": self.save_receive_history,
-                    "enable_experimental": self.enable_experimental,
-                    "disable_info_logging": self.disable_info_logging,
-                    "download_folder": self.upload_dir,
-                }
-                with open(self.settings_path, "w", encoding="utf-8") as f:
-                    json.dump(default_settings, f, ensure_ascii=True, indent=2)
-                decky.logger.info("Default settings file created")
-                
+            data = load_json_settings(
+                self.settings_path,
+                self._get_default_settings(),
+                logger=lambda msg: decky.logger.info(msg)
+            )
             
-            # Load existing settings
-            with open(self.settings_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
             self.legacy_mode = bool(data.get("legacy_mode", self.legacy_mode))
             self.use_mixed_scan = bool(data.get("use_mixed_scan", self.use_mixed_scan))
             self.skip_notify = bool(data.get("skip_notify", self.skip_notify))
@@ -122,54 +134,32 @@ class Plugin:
 
     def _load_receive_history(self):
         """Load file receive history from disk"""
-        try:
-            os.makedirs(decky.DECKY_PLUGIN_SETTINGS_DIR, exist_ok=True)
-            
-            # Create empty receive history file if it doesn't exist
-            if not os.path.exists(self.receive_history_path):
-                decky.logger.info(f"Receive history file not found, creating empty: {self.receive_history_path}")
-                with open(self.receive_history_path, "w", encoding="utf-8") as f:
-                    json.dump([], f, ensure_ascii=False, indent=2)
-                self.receive_history = []
-                decky.logger.info("Empty receive history file created")
-                
-            
-            # Load existing receive history
-            with open(self.receive_history_path, "r", encoding="utf-8") as f:
-                self.receive_history = json.load(f)
-            decky.logger.info(f"Loaded {len(self.receive_history)} receive history records")
-        except Exception as e:
-            decky.logger.warning(f"Failed to load receive history: {e}")
-            self.receive_history = []
+        self.receive_history = load_receive_history(
+            self.receive_history_path,
+            logger=lambda msg: decky.logger.info(msg)
+        )
 
     def _save_receive_history(self):
         """Persist file receive history to disk"""
-        try:
-            os.makedirs(decky.DECKY_PLUGIN_SETTINGS_DIR, exist_ok=True)
-            with open(self.receive_history_path, "w", encoding="utf-8") as f:
-                json.dump(self.receive_history, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            decky.logger.error(f"Failed to save receive history: {e}")
+        save_receive_history(
+            self.receive_history_path,
+            self.receive_history,
+            logger=lambda msg: decky.logger.error(msg)
+        )
 
     def _add_receive_history(self, folder_path: str, files: list, title: str = "", is_text: bool = False, text_content: str = ""):
         """Add a new entry to receive history"""
         if not self.save_receive_history:
             return
         
-        entry = {
-            "id": f"recv-{int(time.time() * 1000)}-{len(self.receive_history)}",
-            "timestamp": time.time(),
-            "title": title or ("Text Received" if is_text else "File Received"),
-            "folderPath": folder_path,
-            "fileCount": len(files),
-            "files": files,
-            "isText": is_text,
-        }
-        
-        # Add text content preview for text items (truncate if too long)
-        if is_text and text_content:
-            entry["textPreview"] = text_content[:200] + ("..." if len(text_content) > 200 else "")
-            entry["textContent"] = text_content
+        entry = create_receive_history_entry(
+            folder_path=folder_path,
+            files=files,
+            title=title,
+            is_text=is_text,
+            text_content=text_content,
+            current_count=len(self.receive_history)
+        )
         
         self.receive_history.insert(0, entry)  # Insert at beginning (newest first)
         
@@ -185,127 +175,32 @@ class Plugin:
 
     def _save_settings(self):
         """Persist plugin settings to disk"""
-        try:
-            os.makedirs(decky.DECKY_PLUGIN_SETTINGS_DIR, exist_ok=True)
-            with open(self.settings_path, "w", encoding="utf-8") as f:
-                json.dump(
-                    {
-                        "legacy_mode": self.legacy_mode,
-                        "use_mixed_scan": self.use_mixed_scan,
-                        "skip_notify": self.skip_notify,
-                        "multicast_address": self.multicast_address,
-                        "multicast_port": self.multicast_port,
-                        "pin": self.pin,
-                        "auto_save": self.auto_save,
-                        "use_https": self.use_https,
-                        "notify_on_download": self.notify_on_download,
-                        "save_receive_history": self.save_receive_history,
-                        "enable_experimental": self.enable_experimental,
-                        "disable_info_logging": self.disable_info_logging,
-                        "download_folder": self.upload_dir,
-                    },
-                    f,
-                    ensure_ascii=True,
-                    indent=2,
-                )
-        except Exception as e:
-            decky.logger.error(f"Failed to save settings: {e}")
+        settings = {
+            "legacy_mode": self.legacy_mode,
+            "use_mixed_scan": self.use_mixed_scan,
+            "skip_notify": self.skip_notify,
+            "multicast_address": self.multicast_address,
+            "multicast_port": self.multicast_port,
+            "pin": self.pin,
+            "auto_save": self.auto_save,
+            "use_https": self.use_https,
+            "notify_on_download": self.notify_on_download,
+            "save_receive_history": self.save_receive_history,
+            "enable_experimental": self.enable_experimental,
+            "disable_info_logging": self.disable_info_logging,
+            "download_folder": self.upload_dir,
+        }
+        save_json_settings(
+            self.settings_path,
+            settings,
+            logger=lambda msg: decky.logger.error(msg)
+        )
 
     def _ensure_dirs(self):
         os.makedirs(decky.DECKY_PLUGIN_SETTINGS_DIR, exist_ok=True)
         os.makedirs(self.upload_dir, exist_ok=True)
         os.makedirs(decky.DECKY_PLUGIN_LOG_DIR, exist_ok=True)
 
-    def _start_notify_server(self):
-        """Start Unix Domain Socket notification server"""
-        if self.notify_thread is not None and self.notify_thread.is_alive():
-            decky.logger.info("Notification server is already running")
-            return
-        
-        # Cleanup existing socket
-        if os.path.exists(self.socket_path):
-            try:
-                os.remove(self.socket_path)
-            except Exception as e:
-                decky.logger.warning(f"Failed to remove existing socket: {e}")
-        
-        self.notify_shutdown.clear()
-        
-        def run_notify_server():
-            try:
-                # Create Unix socket
-                sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                sock.bind(self.socket_path)
-                sock.listen(5)
-                sock.settimeout(1.0)  # Allow periodic checks for shutdown
-                self.notify_socket = sock
-                
-                decky.logger.info(f"📡 Notification server listening on: {self.socket_path}")
-                
-                while not self.notify_shutdown.is_set():
-                    try:
-                        conn, _ = sock.accept()
-                        # Handle connection in the same thread (simple implementation)
-                        try:
-                            data = conn.recv(4096)
-                            if data:
-                                notification = json.loads(data.decode('utf-8'))
-                                self._handle_notification(notification)
-                                
-                                # Send response
-                                response = {"ok": True}
-                                conn.send(json.dumps(response).encode('utf-8'))
-                        except json.JSONDecodeError as e:
-                            decky.logger.error(f"Failed to parse notification JSON: {e}")
-                        except Exception as e:
-                            decky.logger.error(f"Error handling connection: {e}")
-                        finally:
-                            conn.close()
-                    except socket.timeout:
-                        # Timeout is expected, continue loop
-                        continue
-                    except Exception as e:
-                        if not self.notify_shutdown.is_set():
-                            decky.logger.error(f"Socket accept error: {e}")
-                        break
-                
-            except Exception as e:
-                decky.logger.error(f"Notification server error: {e}")
-            finally:
-                if self.notify_socket:
-                    try:
-                        self.notify_socket.close()
-                    except:
-                        pass
-                    self.notify_socket = None
-                
-                # Cleanup socket file
-                if os.path.exists(self.socket_path):
-                    try:
-                        os.remove(self.socket_path)
-                    except:
-                        pass
-                
-                decky.logger.info("📡 Notification server stopped")
-        
-        self.notify_thread = threading.Thread(target=run_notify_server, daemon=True)
-        self.notify_thread.start()
-    
-    def _stop_notify_server(self):
-        """Stop Unix Domain Socket notification server"""
-        if self.notify_thread is None or not self.notify_thread.is_alive():
-            return
-        
-        decky.logger.info("Stopping notification server...")
-        self.notify_shutdown.set()
-        
-        # Wait for thread to finish
-        if self.notify_thread:
-            self.notify_thread.join(timeout=3)
-        
-        self.notify_thread = None
-        decky.logger.info("Notification server stopped")
-    
     def _emit_notification_safe(self, title: str, message: str):
         """Safely emit notification from thread to main event loop"""
         if self.loop is None or self.loop.is_closed():
@@ -389,8 +284,7 @@ class Plugin:
                     decky.logger.info(f"📝 Text-only notification detected")
                     # Read text content from uploaded file
                     try:
-                        # Problem in text only :P my bad.
-                        file_path = os.path.join(self.upload_dir,session_id)
+                        file_path = os.path.join(self.upload_dir, session_id)
                         txt_files = [f for f in os.listdir(file_path) if f.endswith('.txt')]
                         text_file_name = txt_files[0] if txt_files else ''
                         if text_file_name and os.path.exists(os.path.join(file_path, text_file_name)):
@@ -421,7 +315,6 @@ class Plugin:
                     except Exception as e:
                         decky.logger.error(f"Failed to read text content: {e}")
                 
-                # Emit regular upload completed event
                 # Update upload session status
                 if session_id in self.upload_sessions and file_id in self.upload_sessions[session_id]:
                     file_session = self.upload_sessions[session_id][file_id]
@@ -492,7 +385,7 @@ class Plugin:
             "-useDefaultUploadFolder",
             self.upload_dir,
             "-useReferNetworkInterface",
-            "*", # set to all
+            "*",  # set to all
         ]
         if self.multicast_address:
             cmd.extend(["-useMultcastAddress", self.multicast_address])
@@ -535,7 +428,7 @@ class Plugin:
 
     async def start_backend(self):
         try:
-            self._start_notify_server()
+            self.notify_server.start()
             self._start_backend()
             return {"running": True, "url": self.backend_url}
         except Exception as error:
@@ -548,142 +441,6 @@ class Plugin:
 
     async def get_backend_status(self):
         return {"running": self._is_running(), "url": self.backend_url}
-
-    def _read_config_yaml(self) -> dict:
-        try:
-            os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
-        except Exception as e:
-            decky.logger.error(f"Failed to create config directory: {e}")
-            return {}
-        
-        if not os.path.exists(self.config_path):
-            return {}
-        try:
-            with open(self.config_path, "r", encoding="utf-8") as f:
-                lines = f.readlines()
-        except Exception as e:
-            decky.logger.error(f"Failed to read config: {e}")
-            return {}
-
-        config = {}
-        for line in lines:
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#") or ":" not in line:
-                continue
-            key, _, value = stripped.partition(":")
-            key = key.strip()
-            value = value.strip()
-            if value.startswith('"') and value.endswith('"'):
-                value = value[1:-1]
-            elif value.lower() in ("true", "false"):
-                value = value.lower() == "true"
-            else:
-                try:
-                    value = int(value)
-                except ValueError:
-                    pass
-            config[key] = value
-        return config
-
-    def _format_yaml_value(self, value):
-        if isinstance(value, bool):
-            return "true" if value else "false"
-        if isinstance(value, (int, float)):
-            return str(value)
-        value_str = str(value)
-        if value_str == "":
-            return '""'
-        needs_quote = any(ch in value_str for ch in [":", "#", "\n", "\r", "\t"]) or value_str.startswith(" ") or value_str.endswith(" ")
-        return json.dumps(value_str) if needs_quote else value_str
-
-    def _update_config_yaml(self, updates: dict) -> None:
-        os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
-        lines = []
-        if os.path.exists(self.config_path):
-            try:
-                with open(self.config_path, "r", encoding="utf-8") as f:
-                    lines = f.readlines()
-            except Exception as e:
-                decky.logger.error(f"Failed to read config for update: {e}")
-                lines = []
-
-        updated_keys = set()
-        for idx, line in enumerate(lines):
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#") or ":" not in line:
-                continue
-            key, _, _ = stripped.partition(":")
-            key = key.strip()
-            if key in updates:
-                lines[idx] = f"{key}: {self._format_yaml_value(updates[key])}\n"
-                updated_keys.add(key)
-
-        for key, value in updates.items():
-            if key in updated_keys:
-                continue
-            lines.append(f"{key}: {self._format_yaml_value(value)}\n")
-
-        try:
-            with open(self.config_path, "w", encoding="utf-8") as f:
-                f.writelines(lines)
-        except Exception as e:
-            decky.logger.error(f"Failed to write config: {e}")
-
-    def _get_ssl_context(self):
-        """Create SSL context that ignores certificate verification"""
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-        return ctx
-
-    def _do_request(self, method: str, url: str, data: bytes = None, headers: dict = None, max_retries: int = 3, backoff_factor: float = 0.5):
-        """Execute HTTP request with retry logic using urllib"""
-        retry_status_codes = {500, 502, 503, 504}
-        last_error = None
-        
-        req_headers = headers or {}
-        
-        for attempt in range(max_retries + 1):
-            try:
-                request = urllib.request.Request(url, data=data, headers=req_headers, method=method)
-                ctx = self._get_ssl_context()
-                
-                with urllib.request.urlopen(request, context=ctx, timeout=30) as response:
-                    response_data = response.read()
-                    status_code = response.status
-                    content_type = response.headers.get('Content-Type', '')
-                    
-                    return response_data, status_code, content_type
-                    
-            except urllib.error.HTTPError as e:
-                status_code = e.code
-                if status_code in retry_status_codes and attempt < max_retries:
-                    time.sleep(backoff_factor * (2 ** attempt))
-                    last_error = e
-                    continue
-                # Return error response
-                try:
-                    response_data = e.read()
-                except:
-                    response_data = b''
-                content_type = e.headers.get('Content-Type', '') if e.headers else ''
-                return response_data, status_code, content_type
-                
-            except urllib.error.URLError as e:
-                last_error = e
-                if attempt < max_retries:
-                    time.sleep(backoff_factor * (2 ** attempt))
-                    continue
-                raise
-                
-            except Exception as e:
-                last_error = e
-                if attempt < max_retries:
-                    time.sleep(backoff_factor * (2 ** attempt))
-                    continue
-                raise
-        
-        raise last_error if last_error else Exception("Max retries exceeded")
 
     async def _proxy_request(self, method: str, path: str, **kwargs):
         if not self._is_running():
@@ -711,26 +468,14 @@ class Plugin:
             
             response_data, status_code, content_type = await loop.run_in_executor(
                 None,
-                lambda: self._do_request(method, url, data=data, headers=headers)
+                lambda: do_request(method, url, data=data, headers=headers)
             )
 
-            if 'application/json' in content_type:
-                try:
-                    parsed_data = json.loads(response_data.decode('utf-8'))
-                except (json.JSONDecodeError, UnicodeDecodeError):
-                    parsed_data = response_data.decode('utf-8', errors='replace')
-            elif 'image/' in content_type or 'application/octet-stream' in content_type:
-                # For binary data (images, etc.), return as base64
-
-                parsed_data = base64.b64encode(response_data).decode('utf-8')
-            else:
-                parsed_data = response_data.decode('utf-8', errors='replace')
-
+            parsed_data = parse_response(response_data, content_type)
             return parsed_data, status_code
         except Exception as e:
             decky.logger.error(f"Proxy request failed: {e}")
             return {"error": str(e)}, 500
-
 
     # used in frontend to get data from backend.
     async def proxy_get(self, path: str):
@@ -773,12 +518,7 @@ class Plugin:
     # used in frontend to get notification server status.
     async def get_notify_server_status(self):
         """Get notification server status"""
-        is_running = self.notify_thread is not None and self.notify_thread.is_alive()
-        return {
-            "running": is_running,
-            "socket_path": self.socket_path,
-            "socket_exists": os.path.exists(self.socket_path)
-        }
+        return self.notify_server.get_status()
 
     # Receive history API
     async def get_receive_history(self):
@@ -803,7 +543,10 @@ class Plugin:
         return {"success": False, "error": "Item not found"}
 
     async def get_backend_config(self):
-        config = self._read_config_yaml()
+        config = read_config_yaml(
+            self.config_path,
+            logger=lambda msg: decky.logger.error(msg)
+        )
         return {
             "alias": str(config.get("alias", "")).strip(),
             "download_folder": self.upload_dir,
@@ -837,7 +580,11 @@ class Plugin:
         enable_experimental = bool(config.get("enable_experimental", False))
         disable_info_logging = bool(config.get("disable_info_logging", False))
 
-        self._update_config_yaml({"alias": alias})
+        update_config_yaml(
+            self.config_path,
+            {"alias": alias},
+            logger=lambda msg: decky.logger.error(msg)
+        )
 
         if download_folder:
             self.upload_dir = download_folder
@@ -885,36 +632,10 @@ class Plugin:
     # used in frontend to list all files in a folder recursively.
     async def list_folder_files(self, folder_path: str):
         """List all files in a folder recursively, returning their paths relative to the folder"""
-        if not folder_path or not os.path.isdir(folder_path):
-            return {"success": False, "error": "Invalid folder path", "files": []}
-        
-        try:
-            files = []
-            base_name = os.path.basename(os.path.normpath(folder_path))
-            
-            for root, _, filenames in os.walk(folder_path):
-                for filename in filenames:
-                    abs_path = os.path.join(root, filename)
-                    rel_path = os.path.relpath(abs_path, folder_path)
-                    # Display path includes the folder name for clarity
-                    display_path = os.path.join(base_name, rel_path)
-                    
-                    files.append({
-                        "path": abs_path,
-                        "displayPath": display_path,
-                        "fileName": filename,
-                    })
-            
-            return {
-                "success": True,
-                "files": files,
-                "folderName": base_name,
-                "count": len(files)
-            }
-        except Exception as e:
-            decky.logger.error(f"Failed to list folder files: {e}")
-            return {"success": False, "error": str(e), "files": []}
-    
+        return list_folder_files(
+            folder_path,
+            logger=lambda msg: decky.logger.error(msg)
+        )
 
     async def factory_reset(self):
         """Reset all settings to default and delete config files"""
@@ -962,75 +683,27 @@ class Plugin:
             decky.logger.error(f"Factory reset failed: {e}")
             return {"success": False, "error": str(e)}
 
-
-
     # EXPERIMENTAL: MAY BREAK STEAM TOS, be aware of risks.
-
     async def get_steam_screenshots(self, limit: int = 50):
         """Get Steam screenshots sorted by time"""
-        try:
-            screenshots = []
-            # Support multiple image formats
-            patterns = [
-                "~/.local/share/Steam/userdata/*/760/remote/*/screenshots/*.jpg",
-            ]
-            
-            for pattern in patterns:
-                expanded = os.path.expanduser(pattern)
-                files = glob.glob(expanded)
-                screenshots.extend(files)
-            
-            # Get file info and sort by modification time (newest first)
-            screenshot_info = []
-            for filepath in screenshots:
-                try:
-                    stat = os.stat(filepath)
-                    screenshot_info.append({
-                        "path": filepath,
-                        "filename": os.path.basename(filepath),
-                        "size": stat.st_size,
-                        "mtime": stat.st_mtime,
-                        "mtime_str": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stat.st_mtime))
-                    })
-                except Exception as e:
-                    decky.logger.warning(f"Failed to get info for {filepath}: {e}")
-                    continue
-            
-            # Sort by modification time (newest first)
-            screenshot_info.sort(key=lambda x: x["mtime"], reverse=True)
-            
-            # Limit results
-            screenshot_info = screenshot_info[:limit]
-            
-            decky.logger.info(f"Found {len(screenshot_info)} screenshots")
-            return {
-                "success": True,
-                "screenshots": screenshot_info,
-                "count": len(screenshot_info)
-            }
-            
-        except Exception as e:
-            decky.logger.error(f"Failed to scan screenshots: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "screenshots": [],
-                "count": 0
-            }
+        return get_steam_screenshots(
+            limit=limit,
+            logger=lambda msg: decky.logger.info(msg)
+        )
 
     # BASE decky python-backend.
     async def _main(self):
         self.loop = asyncio.get_event_loop()
-        self._start_notify_server()
+        self.notify_server.start()
         decky.logger.info("localsend plugin loaded")
 
     async def _unload(self):
         self._stop_backend()
-        self._stop_notify_server()
+        self.notify_server.stop()
 
     async def _uninstall(self):
         self._stop_backend()
-        self._stop_notify_server()
+        self.notify_server.stop()
 
     async def _migration(self):
         decky.logger.info("Migrating")

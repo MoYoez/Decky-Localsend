@@ -6,11 +6,30 @@ import type { ScanDevice } from "../types/devices";
 export const createDeviceHandlers = (
   backend: BackendStatus,
   setDevices: (devices: ScanDevice[]) => void,
-  setLoading: (loading: boolean) => void,
+  setRefreshLoading: (loading: boolean) => void,
+  setScanLoading: (loading: boolean) => void,
   selectedDevice: ScanDevice | null,
   setSelectedDevice: (device: ScanDevice | null) => void
 ) => {
-  const handleScan = async () => {
+  // Helper function to update device list
+  const updateDeviceList = (newDevices: ScanDevice[]) => {
+    setDevices(newDevices);
+    
+    if (selectedDevice) {
+      const stillExists = newDevices.some(
+        (d) => d.fingerprint === selectedDevice.fingerprint
+      );
+      if (stillExists) {
+        const updatedDevice = newDevices.find(
+          (d) => d.fingerprint === selectedDevice.fingerprint
+        );
+        setSelectedDevice(updatedDevice ?? null);
+      }
+    }
+  };
+
+  // Refresh device list - gets current cached devices (scan-current)
+  const handleRefreshDevices = async () => {
     if (!backend.running) {
       toaster.toast({
         title: "Backend not running",
@@ -18,41 +37,59 @@ export const createDeviceHandlers = (
       });
       return;
     }
-    setLoading(true);
-
-    setDevices([]);
-    setSelectedDevice(null);
+    setRefreshLoading(true);
     
     try {
       const result = await proxyGet("/api/self/v1/scan-current");
       if (result.status !== 200) {
+        throw new Error(`Refresh failed: ${result.status}`);
+      }
+      const newDevices: ScanDevice[] = result.data?.data ?? [];
+      updateDeviceList(newDevices);
+    } catch (error) {
+      toaster.toast({
+        title: "Refresh failed",
+        body: `${error}`,
+      });
+    } finally {
+      setRefreshLoading(false);
+    }
+  };
+
+  // Trigger immediate scan (scan-now)
+  const handleScanNow = async () => {
+    if (!backend.running) {
+      toaster.toast({
+        title: "Backend not running",
+        body: "Please start the LocalSend backend first",
+      });
+      return;
+    }
+    setScanLoading(true);
+
+    // Clear current devices before scanning
+    setDevices([]);
+    setSelectedDevice(null);
+    
+    try {
+      const result = await proxyGet("/api/self/v1/scan-now");
+      if (result.status !== 200) {
         throw new Error(`Scan failed: ${result.status}`);
       }
       const newDevices: ScanDevice[] = result.data?.data ?? [];
-      setDevices(newDevices);
-      
-      if (selectedDevice) {
-        const stillExists = newDevices.some(
-          (d) => d.fingerprint === selectedDevice.fingerprint
-        );
-        if (stillExists) {
-
-          const updatedDevice = newDevices.find(
-            (d) => d.fingerprint === selectedDevice.fingerprint
-          );
-          setSelectedDevice(updatedDevice ?? null);
-        }
- 
-      }
+      updateDeviceList(newDevices);
     } catch (error) {
       toaster.toast({
         title: "Scan failed",
         body: `${error}`,
       });
     } finally {
-      setLoading(false);
+      setScanLoading(false);
     }
   };
 
-  return { handleScan };
+  // Legacy handleScan - now calls scan-now for immediate scan
+  const handleScan = handleScanNow;
+
+  return { handleScan, handleRefreshDevices, handleScanNow };
 };
