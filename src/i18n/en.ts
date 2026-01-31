@@ -79,6 +79,9 @@ export const en = {
     saveReceiveHistoryDesc: "Save received file history for later viewing",
     disableInfoLogging: "Disable INFO Logging",
     disableInfoLoggingDesc: "Disable backend INFO level logging, only show error logs",
+    scanTimeout: "Scan Timeout",
+    scanTimeoutDesc: "Auto scan timeout in seconds. Set to 0 to disable timeout",
+    editScanTimeout: "Edit Scan Timeout",
     apply: "APPLY",
     configSaved: "Config saved",
     backendRestarted: "Backend restarted",
@@ -135,6 +138,7 @@ export const en = {
     enterDownloadFolder: "Enter download folder path",
     enterMulticastPort: "Enter multicast port",
     enterPin: "Enter PIN",
+    enterScanTimeout: "Enter scan timeout (seconds)",
   },
 
   // Toasts

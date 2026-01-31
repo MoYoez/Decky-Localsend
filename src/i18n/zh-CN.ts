@@ -81,6 +81,9 @@ export const zhCN: TranslationKeys = {
     saveReceiveHistoryDesc: "保存接收的文件历史记录以便后续查看",
     disableInfoLogging: "禁用 INFO 日志",
     disableInfoLoggingDesc: "禁用后端 INFO 级别日志，仅显示错误日志",
+    scanTimeout: "扫描超时",
+    scanTimeoutDesc: "自动扫描超时时间（秒）。设置为 0 禁用超时",
+    editScanTimeout: "编辑扫描超时",
     apply: "应用",
     configSaved: "配置已保存",
     backendRestarted: "后端已重启",
@@ -137,6 +140,7 @@ export const zhCN: TranslationKeys = {
     enterDownloadFolder: "输入下载文件夹路径",
     enterMulticastPort: "输入组播端口",
     enterPin: "输入 PIN 码",
+    enterScanTimeout: "输入扫描超时时间（秒）",
   },
 
   // Toasts

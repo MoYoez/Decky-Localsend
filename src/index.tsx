@@ -115,6 +115,7 @@ function Content() {
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo[]>([]);
   const [enableExperimental, setEnableExperimental] = useState(false);
   const [disableInfoLogging, setDisableInfoLogging] = useState(false);
+  const [scanTimeout, setScanTimeout] = useState("500");
 
   // Fetch network info when backend is running
   const fetchNetworkInfo = async () => {
@@ -158,6 +159,7 @@ function Content() {
         setSaveReceiveHistory(result.save_receive_history !== false);
         setEnableExperimental(!!result.enable_experimental);
         setDisableInfoLogging(!!result.disable_info_logging);
+        setScanTimeout(result.scan_timeout ? String(result.scan_timeout) : "500");
       })
       .catch((error) => {
         toaster.toast({
@@ -293,6 +295,7 @@ function Content() {
       setSaveReceiveHistory(result.save_receive_history !== false);
       setEnableExperimental(!!result.enable_experimental);
       setDisableInfoLogging(!!result.disable_info_logging);
+      setScanTimeout(result.scan_timeout ? String(result.scan_timeout) : "500");
     } catch (error) {
       console.error("Failed to reload config:", error);
     }
@@ -313,6 +316,7 @@ function Content() {
     save_receive_history?: boolean;
     enable_experimental?: boolean;
     disable_info_logging?: boolean;
+    scan_timeout?: string;
   }) => {
     try {
       const currentScanMode = updates.scan_mode ?? scanMode;
@@ -332,6 +336,7 @@ function Content() {
         save_receive_history: updates.save_receive_history ?? saveReceiveHistory,
         enable_experimental: updates.enable_experimental ?? enableExperimental,
         disable_info_logging: updates.disable_info_logging ?? disableInfoLogging,
+        scan_timeout: updates.scan_timeout ?? scanTimeout,
       });
       if (!result.success) {
         throw new Error(result.error ?? "Unknown error");
@@ -392,6 +397,15 @@ function Content() {
       const newValue = value.trim();
       setPin(newValue);
       await saveConfig({ pin: newValue });
+    }
+  };
+
+  const handleEditScanTimeout = async () => {
+    const value = await openInputModal(t("config.scanTimeout"), t("modal.enterScanTimeout"));
+    if (value !== null) {
+      const newValue = value.trim();
+      setScanTimeout(newValue);
+      await saveConfig({ scan_timeout: newValue });
     }
   };
 
@@ -463,6 +477,7 @@ function Content() {
         save_receive_history: saveReceiveHistory,
         enable_experimental: checked,
         disable_info_logging: disableInfoLogging,
+        scan_timeout: scanTimeout,
       });
       if (!result.success) {
         throw new Error(result.error ?? "Unknown error");
@@ -508,6 +523,7 @@ function Content() {
               setSaveReceiveHistory(true);
               setEnableExperimental(false);
               setDisableInfoLogging(false);
+              setScanTimeout("500");
               setBackend({ running: false, url: "https://127.0.0.1:53317" });
               resetAll();
               setUploadProgress([]);
@@ -571,6 +587,16 @@ function Content() {
           <Field label={t("networkInfo.multicastPort")}>
             {multicastPort || t("config.default")}
           </Field>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <Field label={t("config.scanTimeout")}>
+            {scanTimeout || "500"}s
+          </Field>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={handleEditScanTimeout}>
+            {t("config.editScanTimeout")}
+          </ButtonItem>
         </PanelSectionRow>
       </PanelSection>
       <DevicesPanel 
