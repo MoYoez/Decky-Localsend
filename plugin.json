@@ -6,6 +6,6 @@
   "publish": {
     "tags": ["localsend","transfer"],
     "description": "Use Localsend in gaming mode.",
-    "image": "https://github.com/moyoez/decky-localsend/raw/main/.github/assets/preview.jpg?raw=true"
+    "image": "https://raw.githubusercontent.com/moyoez/decky-localsend/main/.github/assets/preview.jpg"
   }
 }
