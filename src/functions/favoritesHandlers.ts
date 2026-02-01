@@ -3,8 +3,8 @@ import { proxyGet, proxyPost, proxyDelete } from "../utils/proxyReq";
 import { t } from "../i18n";
 
 export interface FavoriteDevice {
-  fingerprint: string;
-  alias: string;
+  favorite_fingerprint: string;
+  favorite_alias: string;
 }
 
 /** GET /api/self/v1/favorites response: { data: FavoriteDevice[] } */
@@ -17,10 +17,9 @@ export const createFavoritesHandlers = (
   setFavorites: (favorites: FavoriteDevice[]) => void
 ) => {
   // Fetch favorites list - GET /api/self/v1/favorites
-  // Response: { "data": [ { "fingerprint": "...", "alias": "..." }, ... ] }
+  // When backend is not running, do NOT clear favorites (avoids clearing on re-enter before status is fetched).
   const fetchFavorites = async () => {
     if (!backendRunning) {
-      setFavorites([]);
       return;
     }
     try {
@@ -39,8 +38,8 @@ export const createFavoritesHandlers = (
   const handleAddToFavorites = async (fingerprint: string, alias: string) => {
     try {
       const result = await proxyPost("/api/self/v1/favorites", {
-        fingerprint,
-        alias,
+        favorite_fingerprint: fingerprint,
+        favorite_alias: alias,
       });
       if (result.status === 200) {
         toaster.toast({

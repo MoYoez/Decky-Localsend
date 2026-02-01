@@ -190,6 +190,42 @@ def save_receive_history(
         return False
 
 
+def write_temp_text_file(
+    base_dir: str,
+    text_content: str,
+    file_name: str,
+    logger: Callable[[str], None] = None
+) -> Dict[str, Any]:
+    """
+    Write text content to a temp file for share session (e.g. Download API).
+    Uses a unique suffix to avoid collisions.
+
+    Args:
+        base_dir: Base directory for temp files (e.g. upload_dir/share_temp)
+        text_content: Text content to write
+        file_name: Desired file name (e.g. "text-123.txt")
+        logger: Optional logging callback
+
+    Returns:
+        { success: bool, path?: str, error?: str }
+    """
+    try:
+        import uuid
+        os.makedirs(base_dir, exist_ok=True)
+        base, ext = os.path.splitext(file_name)
+        if not ext:
+            ext = ".txt"
+        unique_name = f"{base}_{uuid.uuid4().hex[:8]}{ext}"
+        file_path = os.path.join(base_dir, unique_name)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(text_content)
+        return {"success": True, "path": file_path}
+    except Exception as e:
+        if logger:
+            logger(f"Failed to write temp text file: {e}")
+        return {"success": False, "error": str(e)}
+
+
 def create_receive_history_entry(
     folder_path: str,
     files: List[str],

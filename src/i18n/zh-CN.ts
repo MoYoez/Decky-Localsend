@@ -48,6 +48,7 @@ export const zhCN: TranslationKeys = {
     folderAdded: "文件夹已添加",
     folderFiles: "个文件",
     manualSend: "手动发送",
+    createShareLink: "创建分享链接",
   },
 
   // Configuration Section
@@ -106,6 +107,8 @@ export const zhCN: TranslationKeys = {
     useHttpsDesc: "启用加密连接 (HTTPS)。关闭后使用非加密连接 (HTTP)",
     notifyOnDownload: "下载完成后提示",
     notifyOnDownloadDesc: "文件下载完成后显示通知",
+    useDownload: "启用下载（通过链接分享）",
+    useDownloadDesc: "启用通过链接分享的下载 API。需重启后端生效。",
     saveReceiveHistory: "保存接收历史",
     saveReceiveHistoryDesc: "保存接收的文件历史记录以便后续查看",
     disableInfoLogging: "禁用 INFO 日志",
@@ -204,6 +207,27 @@ export const zhCN: TranslationKeys = {
     fileCount: "文件数量",
     accept: "接受",
     reject: "拒绝",
+  },
+
+  // Confirm Download Modal
+  confirmDownload: {
+    title: "确认下载",
+    message: "有人请求下载",
+    accept: "允许",
+    reject: "拒绝",
+  },
+
+  // Share Link Modal
+  shareLink: {
+    title: "通过链接分享",
+    description: "将链接分享给接收方，对方在浏览器中打开即可下载文件。",
+    copyLink: "复制链接",
+    copied: "链接已复制！",
+    closeShare: "结束分享",
+    shareEnded: "分享已结束",
+    selectFiles: "请选择文件、文件夹或添加文本来分享",
+    noActiveShare: "暂无分享",
+    createFromMain: "请在主页面选择文件后点击「创建分享链接」开始。",
   },
 
   // Text Received Modal

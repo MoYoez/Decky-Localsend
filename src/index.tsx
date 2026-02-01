@@ -18,12 +18,13 @@ import {
 } from "@decky/api"
 
 import { useLocalSendStore } from "./utils/store";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FaTimes } from "react-icons/fa";
 
 import DevicesPanel from "./components/device";
 import { TextReceivedModal } from "./components/TextReceivedModal";
 import { ConfirmReceiveModal } from "./components/ConfirmReceiveModal";
+import { ConfirmDownloadModal } from "./components/ConfirmDownloadModal";
 import { FileReceivedModal } from "./components/FileReceivedModal";
 import { BasicInputBoxModal } from "./components/basicInputBoxModal";
 import { ReceiveHistoryPanel } from "./components/ReceiveHistoryPanel";
@@ -33,15 +34,16 @@ import type { BackendStatus } from "./types/backend";
 import type { UploadProgress } from "./types/upload";
 import type { NetworkInfo } from "./types/devices";
 
-import { getBackendConfig, getBackendStatus, createFavoritesHandlers, type FavoriteDevice } from "./functions";
+import { getBackendConfig, getBackendStatus, createFavoritesHandlers } from "./functions";
 import { ConfirmModal } from "./components/ConfirmModal";
-import { ConfigPage } from "./pages";
+import { ConfigPage, SharedViaLinkPage } from "./pages";
 import { t } from "./i18n";
 
 import { createBackendHandlers } from "./functions/backendHandlers";
 import { createDeviceHandlers } from "./functions/deviceHandlers";
 import { createFileHandlers } from "./functions/fileHandlers";
 import { createUploadHandlers } from "./functions/uploadHandlers";
+import { createShareSession, confirmDownload } from "./functions/shareHandlers";
 import { proxyGet, proxyPost } from "./utils/proxyReq";
 import { LuSendToBack } from "react-icons/lu";
 
@@ -68,9 +70,11 @@ function Content() {
   const [saveReceiveHistory, setSaveReceiveHistory] = useState(true);
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo[]>([]);
   const [enableExperimental, setEnableExperimental] = useState(false);
+  const [useDownload, setUseDownload] = useState(false);
   const [deviceAlias, setDeviceAlias] = useState("");
   const [devicePort, setDevicePort] = useState<number>(53317);
-  const [favorites, setFavorites] = useState<FavoriteDevice[]>([]);
+  const favorites = useLocalSendStore((state) => state.favorites);
+  const setFavorites = useLocalSendStore((state) => state.setFavorites);
 
   // Fetch network info when backend is running
   const fetchNetworkInfo = async () => {
@@ -118,6 +122,7 @@ function Content() {
       .then((result) => {
         setSaveReceiveHistory(result.save_receive_history !== false);
         setEnableExperimental(!!result.enable_experimental);
+        setUseDownload(!!result.use_download);
         setDevicePort(result.multicast_port || 53317);
       })
       .catch((error) => {
@@ -140,6 +145,7 @@ function Content() {
       const result = await getBackendConfig();
       setSaveReceiveHistory(result.save_receive_history !== false);
       setEnableExperimental(!!result.enable_experimental);
+      setUseDownload(!!result.use_download);
       setDevicePort(result.multicast_port || 53317);
       await fetchDeviceInfo();
       await fetchNetworkInfo();
@@ -174,11 +180,16 @@ function Content() {
     setFavorites
   );
 
-  // Clear device list when backend is closed
+  // Only clear device list and favorites when backend *transitions* from running to stopped.
+  // Avoid clearing on initial mount (backend.running starts false) or when Content remounts (e.g. after closing favorite modal).
+  const prevBackendRunningRef = useRef<boolean | null>(null);
   useEffect(() => {
-    if (!backend.running) {
+    const wasRunning = prevBackendRunningRef.current;
+    prevBackendRunningRef.current = backend.running;
+    if (wasRunning === true && !backend.running) {
       setDevices([]);
       setSelectedDevice(null);
+      setFavorites([]);
     }
   }, [backend.running]);
 
@@ -190,7 +201,7 @@ function Content() {
   // Get online favorite devices (match by fingerprint with scanned devices)
   const getOnlineFavorites = () => {
     return favorites.map((fav) => {
-      const onlineDevice = devices.find((d) => d.fingerprint === fav.fingerprint);
+      const onlineDevice = devices.find((d) => d.fingerprint === fav.favorite_fingerprint);
       return {
         ...fav,
         online: !!onlineDevice,
@@ -202,7 +213,7 @@ function Content() {
   // Handle quick send to a favorite device
   const handleQuickSendToFavorite = async (favoriteFingerprint: string) => {
     const onlineFav = getOnlineFavorites().find(
-      (f) => f.fingerprint === favoriteFingerprint && f.online && f.device
+      (f) => f.favorite_fingerprint === favoriteFingerprint && f.online && f.device
     );
     if (!onlineFav || !onlineFav.device) {
       toaster.toast({
@@ -482,6 +493,36 @@ function Content() {
     }
   };
 
+  const setShareLinkSession = useLocalSendStore((state) => state.setShareLinkSession);
+
+  // Handle create share link (Download API) -> navigate to Shared via Link page
+  const handleCreateShareLink = async () => {
+    const shareableFiles = selectedFiles.filter(
+      (f) =>
+        f.textContent ||
+        (!f.isFolder && f.sourcePath) ||
+        (f.isFolder && f.folderPath)
+    );
+    if (shareableFiles.length === 0) {
+      toaster.toast({
+        title: t("common.error"),
+        body: t("shareLink.selectFiles"),
+      });
+      return;
+    }
+    try {
+      const { sessionId, downloadUrl } = await createShareSession(shareableFiles, undefined, true);
+      setShareLinkSession({ sessionId, downloadUrl });
+      Router.CloseSideMenus();
+      Router.Navigate("/decky-localsend-share-link");
+    } catch (error) {
+      toaster.toast({
+        title: t("common.error"),
+        body: String(error),
+      });
+    }
+  };
+
   // Handle screenshot gallery (experimental)
   const handleOpenScreenshotGallery = () => {
     // Show warning modal first
@@ -630,6 +671,30 @@ function Content() {
             {t("upload.manualSend")}
           </ButtonItem>
         </PanelSectionRow>
+        {useDownload && (
+          <PanelSectionRow>
+            <ButtonItem
+              layout="below"
+              onClick={handleCreateShareLink}
+              disabled={uploading || selectedFiles.length === 0}
+            >
+              🔗 {t("upload.createShareLink")}
+            </ButtonItem>
+          </PanelSectionRow>
+        )}
+        {useDownload && (
+          <PanelSectionRow>
+            <ButtonItem
+              layout="below"
+              onClick={() => {
+                Router.CloseSideMenus();
+                Router.Navigate("/decky-localsend-share-link");
+              }}
+            >
+              🔗 {t("shareLink.title")}
+            </ButtonItem>
+          </PanelSectionRow>
+        )}
         {/* Quick send to favorites */}
         {selectedFiles.length > 0 && favorites.length > 0 && (
           <>
@@ -640,13 +705,13 @@ function Content() {
               <Focusable style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {getOnlineFavorites().map((fav) => (
                   <ButtonItem
-                    key={fav.fingerprint}
+                    key={fav.favorite_fingerprint}
                     layout="below"
-                    onClick={() => handleQuickSendToFavorite(fav.fingerprint)}
+                    onClick={() => handleQuickSendToFavorite(fav.favorite_fingerprint)}
                     disabled={uploading || !fav.online}
                   >
                     <span style={{ fontSize: '13px', opacity: fav.online ? 1 : 0.5 }}>
-                      {fav.online ? '🟢' : '⚫'} {t("upload.sendTo")} {fav.alias || fav.fingerprint.substring(0, 8)}
+                      {fav.online ? '🟢' : '⚫'} {t("upload.sendTo")} {fav.favorite_alias || fav.favorite_fingerprint.substring(0, 8)}
                       {!fav.online && ` (${t("upload.deviceOffline")})`}
                     </span>
                   </ButtonItem>
@@ -750,6 +815,7 @@ function Content() {
 export default definePlugin(() => {
   // Register config page route (without exact to allow sub-routes)
   routerHook.addRoute("/decky-localsend-config", ConfigPage);
+  routerHook.addRoute("/decky-localsend-share-link", SharedViaLinkPage);
 
   // Helper function to update device in store
   const updateDeviceInStore = (deviceData: any) => {
@@ -821,6 +887,42 @@ export default definePlugin(() => {
               if (result.status !== 200) {
                 throw new Error(result.data?.error || "Confirm request failed");
               }
+              toaster.toast({
+                title: confirmed ? t("toast.accepted") : t("toast.rejected"),
+                body: confirmed ? t("toast.receiveConfirmed") : t("toast.receiveRejected"),
+              });
+            } catch (error) {
+              toaster.toast({
+                title: t("toast.confirmFailed"),
+                body: String(error),
+              });
+            }
+          }}
+          closeModal={() => modalResult.Close()}
+        />
+      );
+      return;
+    }
+
+    if (event.type === "confirm_download") {
+      const data = event.data ?? {};
+      const sessionId = String(data.sessionId || "");
+      const fileCount = Number(data.fileCount || 0);
+      const files = Array.isArray(data.files) ? data.files : [];
+      const modalResult = showModal(
+        <ConfirmDownloadModal
+          fileCount={fileCount}
+          files={files}
+          onConfirm={async (confirmed) => {
+            if (!sessionId) {
+              toaster.toast({
+                title: t("toast.confirmFailed"),
+                body: t("toast.missingSessionId"),
+              });
+              return;
+            }
+            try {
+              await confirmDownload(sessionId, confirmed);
               toaster.toast({
                 title: confirmed ? t("toast.accepted") : t("toast.rejected"),
                 body: confirmed ? t("toast.receiveConfirmed") : t("toast.receiveRejected"),
@@ -913,6 +1015,7 @@ export default definePlugin(() => {
       removeEventListener("text_received", TextReceivedListener);
       removeEventListener("file_received", FileReceivedListener);
       routerHook.removeRoute("/decky-localsend-config");
+      routerHook.removeRoute("/decky-localsend-share-link");
     },
   };
 });

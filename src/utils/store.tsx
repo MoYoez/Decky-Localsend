@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { FavoriteDevice } from '../functions/favoritesHandlers';
 
 // Type definitions
 type ScanDevice = {
@@ -39,6 +40,14 @@ interface LocalSendStore {
   addFile: (file: FileInfo) => void;
   removeFile: (fileId: string) => void;
   clearFiles: () => void;
+
+  // Share via link session (preserved when navigating to SharedViaLinkPage)
+  shareLinkSession: { sessionId: string; downloadUrl: string } | null;
+  setShareLinkSession: (session: { sessionId: string; downloadUrl: string } | null) => void;
+
+  // Favorites (preserved when modal closes / Content remounts so heart stays lit)
+  favorites: FavoriteDevice[];
+  setFavorites: (favorites: FavoriteDevice[]) => void;
   
   // Reset all state
   resetAll: () => void;
@@ -50,7 +59,9 @@ export const useLocalSendStore = create<LocalSendStore>((set) => ({
   devices: [],
   selectedDevice: null,
   selectedFiles: [],
-  
+  shareLinkSession: null,
+  favorites: [],
+
   // Actions for devices
   setDevices: (devices) => set({ devices }),
   
@@ -86,11 +97,17 @@ export const useLocalSendStore = create<LocalSendStore>((set) => ({
   })),
   
   clearFiles: () => set({ selectedFiles: [] }),
-  
+
+  setShareLinkSession: (session) => set({ shareLinkSession: session }),
+
+  setFavorites: (favorites) => set({ favorites }),
+
   // Reset all state to initial values
   resetAll: () => set({
     devices: [],
     selectedDevice: null,
     selectedFiles: [],
+    shareLinkSession: null,
+    favorites: [],
   }),
 }));

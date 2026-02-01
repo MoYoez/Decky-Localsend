@@ -23,7 +23,7 @@ export const FavoritesAddModal = ({
 }: FavoritesAddModalProps) => {
   // Filter out already favorited devices
   const availableDevices = devices.filter(
-    (d) => d.fingerprint && !favorites.some((f) => f.fingerprint === d.fingerprint)
+    (d) => d.fingerprint && !favorites.some((f) => f.favorite_fingerprint === d.fingerprint)
   );
 
   return (

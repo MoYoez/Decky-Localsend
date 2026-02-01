@@ -14,6 +14,8 @@ import { toaster, openFilePicker, FileSelectionType } from "@decky/api";
 import { FaTimes } from "react-icons/fa";
 import { About } from "./about";
 import { t } from "../i18n";
+
+export { SharedViaLinkPage } from "./SharedViaLinkPage";
 import { useLocalSendStore } from "../utils/store";
 import { proxyGet } from "../utils/proxyReq";
 
@@ -24,7 +26,6 @@ import {
   setBackendConfig,
   factoryReset,
   createFavoritesHandlers,
-  type FavoriteDevice,
 } from "../functions";
 import { BasicInputBoxModal } from "../components/basicInputBoxModal";
 import { ConfirmModal } from "../components/ConfirmModal";
@@ -86,9 +87,11 @@ export const ConfigPage: FC = () => {
   const [notifyOnDownload, setNotifyOnDownload] = useState(false);
   const [saveReceiveHistory, setSaveReceiveHistory] = useState(true);
   const [enableExperimental, setEnableExperimental] = useState(false);
+  const [useDownload, setUseDownload] = useState(false);
   const [disableInfoLogging, setDisableInfoLogging] = useState(false);
   const [scanTimeout, setScanTimeout] = useState("500");
-  const [favorites, setFavorites] = useState<FavoriteDevice[]>([]);
+  const favorites = useLocalSendStore((state) => state.favorites);
+  const setFavorites = useLocalSendStore((state) => state.setFavorites);
   const [networkInterfaces, setNetworkInterfaces] = useState<{ label: string; value: string }[]>([]);
 
   // Favorites handlers
@@ -140,6 +143,7 @@ export const ConfigPage: FC = () => {
         setNotifyOnDownload(!!result.notify_on_download);
         setSaveReceiveHistory(result.save_receive_history !== false);
         setEnableExperimental(!!result.enable_experimental);
+        setUseDownload(!!result.use_download);
         setDisableInfoLogging(!!result.disable_info_logging);
         setScanTimeout(String(result.scan_timeout ?? 500));
       })
@@ -166,6 +170,7 @@ export const ConfigPage: FC = () => {
         });
     } else {
       setNetworkInterfaces([]);
+      setFavorites([]);
     }
   }, [backendRunning]);
 
@@ -189,6 +194,7 @@ export const ConfigPage: FC = () => {
         notify_on_download: updates.notify_on_download ?? notifyOnDownload,
         save_receive_history: updates.save_receive_history ?? saveReceiveHistory,
         enable_experimental: updates.enable_experimental ?? enableExperimental,
+        use_download: updates.use_download ?? useDownload,
         disable_info_logging: updates.disable_info_logging ?? disableInfoLogging,
         scan_timeout: updates.scan_timeout ?? (parseInt(scanTimeout) || 500),
       });
@@ -352,6 +358,7 @@ export const ConfigPage: FC = () => {
               setNotifyOnDownload(false);
               setSaveReceiveHistory(true);
               setEnableExperimental(false);
+              setUseDownload(false);
               setDisableInfoLogging(false);
               setScanTimeout("500");
               toaster.toast({
@@ -441,7 +448,7 @@ export const ConfigPage: FC = () => {
             <Focusable style={{ maxHeight: "150px", overflowY: "auto" }}>
               {favorites.map((fav) => (
                 <div
-                  key={fav.fingerprint}
+                  key={fav.favorite_fingerprint}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -451,7 +458,7 @@ export const ConfigPage: FC = () => {
                   }}
                 >
                   <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {fav.alias || fav.fingerprint.substring(0, 16) + "..."}
+                    {fav.favorite_alias || fav.favorite_fingerprint.substring(0, 16) + "..."}
                   </span>
                   <button
                     onClick={() => {
@@ -461,7 +468,7 @@ export const ConfigPage: FC = () => {
                           message={t("config.removeFavoriteConfirm")}
                           confirmText={t("config.favoritesRemove")}
                           onConfirm={() => {
-                            handleRemoveFromFavorites(fav.fingerprint);
+                            handleRemoveFromFavorites(fav.favorite_fingerprint);
                             confirmModal.Close();
                           }}
                           closeModal={() => confirmModal.Close()}
@@ -638,6 +645,17 @@ export const ConfigPage: FC = () => {
         </PanelSectionRow>
         <PanelSectionRow>
           <ToggleField
+            label={t("config.useDownload")}
+            description={t("config.useDownloadDesc")}
+            checked={useDownload}
+            onChange={(checked: boolean) => {
+              setUseDownload(checked);
+              saveConfig({ use_download: checked });
+            }}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ToggleField
             label={t("config.saveReceiveHistory")}
             description={t("config.saveReceiveHistoryDesc")}
             checked={saveReceiveHistory}
@@ -680,7 +698,7 @@ export const ConfigPage: FC = () => {
 
   return (
     <SidebarNavigation
-      title={t("config.title")}
+      title={"Decky Localsend"}
       showTitle
       pages={[
         {

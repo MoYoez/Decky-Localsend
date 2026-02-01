@@ -22,6 +22,7 @@ from file_utils import (  # pyright: ignore[reportMissingImports]
     load_receive_history,
     save_receive_history,
     create_receive_history_entry,
+    write_temp_text_file,
 )
 from notify_server import NotifyServer  # pyright: ignore[reportMissingImports]
 
@@ -53,6 +54,7 @@ class Plugin:
         self.notify_on_download = True
         self.save_receive_history = True
         self.enable_experimental = False
+        self.use_download = False  # Enable Download API (share via link)
         self.disable_info_logging = False
         self.scan_timeout = 500  # scan timeout in seconds, default 500
         self.network_interface = "*"  # "*" means all interfaces
@@ -100,6 +102,7 @@ class Plugin:
             "notify_on_download": self.notify_on_download,
             "save_receive_history": self.save_receive_history,
             "enable_experimental": self.enable_experimental,
+            "use_download": self.use_download,
             "disable_info_logging": self.disable_info_logging,
             "download_folder": self.upload_dir,
             "scan_timeout": self.scan_timeout,
@@ -144,6 +147,7 @@ class Plugin:
             self.notify_on_download = bool(data.get("notify_on_download", self.notify_on_download))
             self.save_receive_history = bool(data.get("save_receive_history", self.save_receive_history))
             self.enable_experimental = bool(data.get("enable_experimental", False))
+            self.use_download = bool(data.get("use_download", self.use_download))
             self.disable_info_logging = bool(data.get("disable_info_logging", False))
             scan_timeout = data.get("scan_timeout", self.scan_timeout)
             try:
@@ -215,6 +219,7 @@ class Plugin:
             "notify_on_download": self.notify_on_download,
             "save_receive_history": self.save_receive_history,
             "enable_experimental": self.enable_experimental,
+            "use_download": self.use_download,
             "disable_info_logging": self.disable_info_logging,
             "download_folder": self.upload_dir,
             "scan_timeout": self.scan_timeout,
@@ -467,6 +472,8 @@ class Plugin:
         cmd.append(f"-useAutoSave={'true' if self.auto_save else 'false'}")
         cmd.append(f"-useAutoSaveFromFavorites={'true' if self.auto_save_from_favorites else 'false'}")
         cmd.append(f"-useHttps={'true' if self.use_https else 'false'}")
+        if self.use_download:
+            cmd.append("-useDownload")
 
         self.process = subprocess.Popen(
             cmd,
@@ -641,6 +648,7 @@ class Plugin:
             "notify_on_download": self.notify_on_download,
             "save_receive_history": self.save_receive_history,
             "enable_experimental": self.enable_experimental,
+            "use_download": self.use_download,
             "disable_info_logging": self.disable_info_logging,
             "scan_timeout": self.scan_timeout,
         }
@@ -661,6 +669,7 @@ class Plugin:
         notify_on_download = bool(config.get("notify_on_download", False))
         save_receive_history = bool(config.get("save_receive_history", True))
         enable_experimental = bool(config.get("enable_experimental", False))
+        use_download = bool(config.get("use_download", False))
         disable_info_logging = bool(config.get("disable_info_logging", False))
         scan_timeout_raw = config.get("scan_timeout", 500)
         try:
@@ -689,6 +698,7 @@ class Plugin:
         self.notify_on_download = notify_on_download
         self.save_receive_history = save_receive_history
         self.enable_experimental = enable_experimental
+        self.use_download = use_download
         self.disable_info_logging = disable_info_logging
         self.scan_timeout = scan_timeout
 
@@ -721,6 +731,16 @@ class Plugin:
         """List all files in a folder recursively, returning their paths relative to the folder"""
         return list_folder_files(
             folder_path,
+            logger=lambda msg: decky.logger.error(msg)
+        )
+
+    async def write_temp_text_file(self, text_content: str, file_name: str):
+        """Write text to a temp file for share session. Returns { success, path? } or { success: false, error? }"""
+        share_temp_dir = os.path.join(self.upload_dir, "share_temp")
+        return write_temp_text_file(
+            base_dir=share_temp_dir,
+            text_content=text_content,
+            file_name=file_name or "text.txt",
             logger=lambda msg: decky.logger.error(msg)
         )
 
@@ -760,6 +780,8 @@ class Plugin:
             self.network_interface = "*"
             self.notify_on_download = False
             self.save_receive_history = True
+            self.enable_experimental = False
+            self.use_download = False
             self.disable_info_logging = False
             self.scan_timeout = 500
             self.upload_dir = os.path.join(decky.DECKY_PLUGIN_RUNTIME_DIR, "uploads")

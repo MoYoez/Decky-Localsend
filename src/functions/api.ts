@@ -7,6 +7,11 @@ export const stopBackend = callable<[], BackendStatus>("stop_backend");
 export const getBackendStatus = callable<[], BackendStatus>("get_backend_status");
 
 // File API
+export const writeTempTextFile = callable<
+  [string, string],
+  { success: boolean; path?: string; error?: string }
+>("write_temp_text_file");
+
 export const listFolderFiles = callable<
   [string],
   {
@@ -75,6 +80,7 @@ export const getBackendConfig = callable<
     notify_on_download: boolean;
     save_receive_history: boolean;
     enable_experimental: boolean;
+    use_download: boolean;
     disable_info_logging: boolean;
     scan_timeout: number;
   }
@@ -98,6 +104,7 @@ export const setBackendConfig = callable<
       notify_on_download: boolean;
       save_receive_history: boolean;
       enable_experimental: boolean;
+      use_download: boolean;
       disable_info_logging: boolean;
       scan_timeout: number | string;
     }

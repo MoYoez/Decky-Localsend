@@ -53,7 +53,7 @@ function DevicesPanel({
   onRemoveFromFavorites,
 }: DevicesPanelProps) {
   const isFavorite = (fingerprint: string) => 
-    favorites.some((f) => f.fingerprint === fingerprint);
+    favorites.some((f) => f.favorite_fingerprint === fingerprint);
 
   const handleFavoriteClick = (device: ScanDevice, e: React.MouseEvent) => {
     e.stopPropagation();

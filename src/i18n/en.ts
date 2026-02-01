@@ -45,6 +45,7 @@ export const en = {
     folderAdded: "Folder added",
     folderFiles: "files",
     manualSend: "Manual Send",
+    createShareLink: "Create Share Link",
   },
 
   // Configuration Section
@@ -103,6 +104,8 @@ export const en = {
     useHttpsDesc: "Enable encrypted connection (HTTPS). Disable for unencrypted (HTTP)",
     notifyOnDownload: "Notify on Download Complete",
     notifyOnDownloadDesc: "Show notification when file download is complete",
+    useDownload: "Use Download (Share via Link)",
+    useDownloadDesc: "Enable Download API for share via link. Restart backend to take effect.",
     saveReceiveHistory: "Save Receive History",
     saveReceiveHistoryDesc: "Save received file history for later viewing",
     disableInfoLogging: "Disable INFO Logging",
@@ -201,6 +204,27 @@ export const en = {
     fileCount: "File count",
     accept: "Accept",
     reject: "Reject",
+  },
+
+  // Confirm Download Modal (receiver requests to download from Decky)
+  confirmDownload: {
+    title: "Confirm Download",
+    message: "Someone is requesting to download",
+    accept: "Allow",
+    reject: "Reject",
+  },
+
+  // Share Link Modal (create share session, show download URL)
+  shareLink: {
+    title: "Share via Link",
+    description: "Share this link with the receiver. They can open it in a browser to download the files.",
+    copyLink: "Copy Link",
+    copied: "Link copied!",
+    closeShare: "End Share",
+    shareEnded: "Share ended",
+    selectFiles: "Please select files, folders, or add text to share",
+    noActiveShare: "No active share",
+    createFromMain: "Select files on the main page and use \"Create Share Link\" to start.",
   },
 
   // Text Received Modal
