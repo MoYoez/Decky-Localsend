@@ -134,6 +134,8 @@ export const en = {
     allDataCleared: "All data has been cleared",
     factoryResetComplete: "Reset Complete",
     allSettingsReset: "All settings have been reset to default",
+    resetSuccess: "Reset Success",
+    resetSuccessDesc: "All settings have been reset to default, please restart backend to take effect",
   },
 
   // Developer Tools Section

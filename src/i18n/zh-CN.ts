@@ -137,6 +137,8 @@ export const zhCN: TranslationKeys = {
     allDataCleared: "所有数据已清除",
     factoryResetComplete: "重置完成",
     allSettingsReset: "所有设置已重置为默认值",
+    resetSuccess: "重置成功",
+    resetSuccessDesc: "所有设置已重置为默认值，请重启后端以生效",
   },
 
   // Developer Tools Section
