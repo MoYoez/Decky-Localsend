@@ -6,9 +6,8 @@ import {
   Field,
   Focusable,
   ToggleField,
-  SliderField,
   showModal,
-  Router
+  Router,
 } from "@decky/ui";
 import {
   definePlugin,
@@ -21,7 +20,7 @@ import {
 import { useLocalSendStore } from "./utils/store";
 import { useEffect, useState } from "react";
 import { FaTimes } from "react-icons/fa";
-import {FaEnvelope} from "react-icons/fa";
+
 import DevicesPanel from "./components/device";
 import { TextReceivedModal } from "./components/TextReceivedModal";
 import { ConfirmReceiveModal } from "./components/ConfirmReceiveModal";
@@ -34,51 +33,17 @@ import type { BackendStatus } from "./types/backend";
 import type { UploadProgress } from "./types/upload";
 import type { NetworkInfo } from "./types/devices";
 
-import { getBackendConfig, getBackendStatus, setBackendConfig, factoryReset } from "./functions/api";
+import { getBackendConfig, getBackendStatus, createFavoritesHandlers, type FavoriteDevice } from "./functions";
 import { ConfirmModal } from "./components/ConfirmModal";
-import { About } from "./About";
+import { ConfigPage } from "./pages";
 import { t } from "./i18n";
 
-// Scan Mode Enum
-enum ScanMode {
-  Mixed = 0,   // Mixed Scan (UDP + HTTP) - Default
-  Normal = 1,  // Normal Scan (UDP multicast)
-  HTTP = 2,    // HTTP Scan (legacy mode)
-}
-
-// Scan Mode Labels for SliderField
-const scanModeNotchLabels = [
-  { notchIndex: 0, label: "Mixed", value: 0 },
-  { notchIndex: 1, label: "Normal", value: 1 },
-  { notchIndex: 2, label: "HTTP", value: 2 },
-];
-
-// Convert config flags to ScanMode
-const configToScanMode = (legacyMode: boolean, useMixedScan: boolean): ScanMode => {
-  if (useMixedScan) return ScanMode.Mixed;
-  if (legacyMode) return ScanMode.HTTP;
-  return ScanMode.Normal;
-};
-
-// Convert ScanMode to config flags
-const scanModeToConfig = (mode: ScanMode): { legacy_mode: boolean; use_mixed_scan: boolean } => {
-  switch (mode) {
-    case ScanMode.Mixed:
-      return { legacy_mode: false, use_mixed_scan: true };
-    case ScanMode.Normal:
-      return { legacy_mode: false, use_mixed_scan: false };
-    case ScanMode.HTTP:
-      return { legacy_mode: true, use_mixed_scan: false };
-    default:
-      return { legacy_mode: false, use_mixed_scan: true }; // Default to Mixed
-  }
-};
 import { createBackendHandlers } from "./functions/backendHandlers";
 import { createDeviceHandlers } from "./functions/deviceHandlers";
 import { createFileHandlers } from "./functions/fileHandlers";
 import { createUploadHandlers } from "./functions/uploadHandlers";
-import { proxyGet } from "./utils/proxyReq";
-import { openFolder } from "./utils/openFolder";
+import { proxyGet, proxyPost } from "./utils/proxyReq";
+import { LuSendToBack } from "react-icons/lu";
 
 function Content() {
 
@@ -90,7 +55,6 @@ function Content() {
   const addFile = useLocalSendStore((state) => state.addFile);
   const removeFile = useLocalSendStore((state) => state.removeFile);
   const clearFiles = useLocalSendStore((state) => state.clearFiles);
-  const resetAll = useLocalSendStore((state) => state.resetAll);
   
   // Default config
   const [backend, setBackend] = useState<BackendStatus>({
@@ -101,21 +65,12 @@ function Content() {
   const [scanLoading, setScanLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [configAlias, setConfigAlias] = useState("");
-  const [downloadFolder, setDownloadFolder] = useState("");
-  const [scanMode, setScanMode] = useState<ScanMode>(ScanMode.Mixed);
-  const [skipNotify, setSkipNotify] = useState(false);
-  const [multicastAddress, setMulticastAddress] = useState("");
-  const [multicastPort, setMulticastPort] = useState("");
-  const [pin, setPin] = useState("");
-  const [autoSave, setAutoSave] = useState(true);
-  const [useHttps, setUseHttps] = useState(true);
-  const [notifyOnDownload, setNotifyOnDownload] = useState(false);
   const [saveReceiveHistory, setSaveReceiveHistory] = useState(true);
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo[]>([]);
   const [enableExperimental, setEnableExperimental] = useState(false);
-  const [disableInfoLogging, setDisableInfoLogging] = useState(false);
-  const [scanTimeout, setScanTimeout] = useState("500");
+  const [deviceAlias, setDeviceAlias] = useState("");
+  const [devicePort, setDevicePort] = useState<number>(53317);
+  const [favorites, setFavorites] = useState<FavoriteDevice[]>([]);
 
   // Fetch network info when backend is running
   const fetchNetworkInfo = async () => {
@@ -126,14 +81,29 @@ function Content() {
     try {
       const result = await proxyGet("/api/self/v1/get-network-info");
       if (result.status === 200 && result.data?.data) {
-        // Filter out tun interfaces
-        const filtered = (result.data.data as NetworkInfo[]).filter(
-          (info) => !info.interface_name.startsWith("tun")
-        );
-        setNetworkInfo(filtered);
+        setNetworkInfo(result.data.data);
       }
     } catch (error) {
       console.error("Failed to fetch network info:", error);
+    }
+  };
+
+  
+
+  // Fetch device alias from backend info endpoint (GET /api/localsend/v2/info)
+  const fetchDeviceInfo = async () => {
+    if (!backend.running) {
+      setDeviceAlias("");
+      return;
+    }
+    try {
+      const result = await proxyGet("/api/localsend/v2/info");
+      if (result.status === 200 && result.data) {
+        const alias = (result.data as { alias?: string }).alias;
+        setDeviceAlias(alias ?? "");
+      }
+    } catch (error) {
+      console.error("Failed to fetch device info:", error);
     }
   };
 
@@ -146,20 +116,9 @@ function Content() {
     });
     getBackendConfig()
       .then((result) => {
-        setConfigAlias(result.alias ?? "");
-        setDownloadFolder(result.download_folder ?? "");
-        setScanMode(configToScanMode(!!result.legacy_mode, !!result.use_mixed_scan));
-        setSkipNotify(!!result.skip_notify);
-        setMulticastAddress(result.multicast_address ?? "");
-        setMulticastPort(result.multicast_port ? String(result.multicast_port) : "");
-        setPin(result.pin ?? "");
-        setAutoSave(!!result.auto_save);
-        setUseHttps(result.use_https !== false);
-        setNotifyOnDownload(!!result.notify_on_download);
         setSaveReceiveHistory(result.save_receive_history !== false);
         setEnableExperimental(!!result.enable_experimental);
-        setDisableInfoLogging(!!result.disable_info_logging);
-        setScanTimeout(result.scan_timeout ? String(result.scan_timeout) : "500");
+        setDevicePort(result.multicast_port || 53317);
       })
       .catch((error) => {
         toaster.toast({
@@ -169,11 +128,32 @@ function Content() {
       });
   }, []);
 
-  // Fetch network info when backend status changes
+  // Fetch network info and device alias when backend status changes
   useEffect(() => {
     fetchNetworkInfo();
+    fetchDeviceInfo();
   }, [backend.running]);
 
+  // Reload config: re-fetch backend config + device info (alias from info) + network info
+  const handleReloadConfig = async () => {
+    try {
+      const result = await getBackendConfig();
+      setSaveReceiveHistory(result.save_receive_history !== false);
+      setEnableExperimental(!!result.enable_experimental);
+      setDevicePort(result.multicast_port || 53317);
+      await fetchDeviceInfo();
+      await fetchNetworkInfo();
+      toaster.toast({
+        title: t("config.configReloaded"),
+        body: t("config.reloadConfigDesc"),
+      });
+    } catch (error) {
+      toaster.toast({
+        title: t("common.error"),
+        body: `${error}`,
+      });
+    }
+  };
 
   const { handleToggleBackend } = createBackendHandlers(setBackend);
   
@@ -189,18 +169,54 @@ function Content() {
     clearFiles
   );
 
-  const handleChooseDownloadFolder = async () => {
-    try {
-      const result = await openFolder("/home/deck");
-      const newPath = result.realpath ?? result.path;
-      setDownloadFolder(newPath);
-      await saveConfig({ download_folder: newPath });
-    } catch (error) {
-      toaster.toast({
-        title: t("toast.failedSelectFolder"),
-        body: String(error),
-      });
+  const { fetchFavorites, handleAddToFavorites, handleRemoveFromFavorites } = createFavoritesHandlers(
+    backend.running,
+    setFavorites
+  );
+
+  // Clear device list when backend is closed
+  useEffect(() => {
+    if (!backend.running) {
+      setDevices([]);
+      setSelectedDevice(null);
     }
+  }, [backend.running]);
+
+  // Fetch favorites when backend status changes
+  useEffect(() => {
+    fetchFavorites();
+  }, [backend.running]);
+
+  // Get online favorite devices (match by fingerprint with scanned devices)
+  const getOnlineFavorites = () => {
+    return favorites.map((fav) => {
+      const onlineDevice = devices.find((d) => d.fingerprint === fav.fingerprint);
+      return {
+        ...fav,
+        online: !!onlineDevice,
+        device: onlineDevice,
+      };
+    });
+  };
+
+  // Handle quick send to a favorite device
+  const handleQuickSendToFavorite = async (favoriteFingerprint: string) => {
+    const onlineFav = getOnlineFavorites().find(
+      (f) => f.fingerprint === favoriteFingerprint && f.online && f.device
+    );
+    if (!onlineFav || !onlineFav.device) {
+      toaster.toast({
+        title: t("common.error"),
+        body: t("upload.deviceOffline"),
+      });
+      return;
+    }
+    // Set selected device and trigger upload
+    setSelectedDevice(onlineFav.device);
+    // Small delay to ensure state is updated before upload
+    setTimeout(() => {
+      handleUpload();
+    }, 100);
   };
 
   const openInputModal = (title: string, label: string) =>
@@ -238,6 +254,232 @@ function Content() {
       title: t("upload.textAdded"),
       body: t("upload.readyToSend"),
     });
+  };
+
+  // Handle manual send (FastSender mode)
+  const handleManualSend = async () => {
+    if (selectedFiles.length === 0) {
+      toaster.toast({
+        title: t("common.error"),
+        body: t("upload.selectedFiles") + ": 0",
+      });
+      return;
+    }
+
+    const input = await openInputModal(t("upload.manualSend"), t("modal.enterIpOrSuffix"));
+    if (!input) {
+      return;
+    }
+
+    const trimmedInput = input.trim();
+    // Check if it's a full IP address
+    const isFullIp = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(trimmedInput);
+
+    setUploading(true);
+
+    // Build progress display
+    let progress: UploadProgress[] = selectedFiles.map((f) => ({
+      fileId: f.id,
+      fileName: f.isFolder ? `📁 ${f.fileName} (${f.fileCount} files)` : f.fileName,
+      status: 'pending',
+    }));
+    setUploadProgress(progress);
+
+    try {
+      // Separate items by type
+      const textFiles = selectedFiles.filter((f) => f.textContent);
+      const folderItems = selectedFiles.filter((f) => f.isFolder && f.folderPath);
+      const regularFiles = selectedFiles.filter((f) => !f.textContent && !f.isFolder);
+
+      // Build files map for non-folder files
+      const filesMap: Record<string, { id: string; fileUrl?: string; fileName?: string; size?: number; fileType?: string }> = {};
+      
+      regularFiles.forEach((f) => {
+        filesMap[f.id] = {
+          id: f.id,
+          fileUrl: `file://${f.sourcePath}`,
+        };
+      });
+
+      textFiles.forEach((f) => {
+        const textBytes = new TextEncoder().encode(f.textContent || "");
+        filesMap[f.id] = {
+          id: f.id,
+          fileName: f.fileName,
+          size: textBytes.length,
+          fileType: "text/plain",
+        };
+      });
+
+      const hasFolders = folderItems.length > 0;
+      const folderPath = hasFolders ? folderItems[0].folderPath : null;
+      const hasExtraFiles = Object.keys(filesMap).length > 0;
+
+      // Build FastSender request
+      const fastSenderParams: Record<string, any> = {
+        useFastSender: true,
+      };
+      if (isFullIp) {
+        fastSenderParams.useFastSenderIp = trimmedInput;
+      } else {
+        fastSenderParams.useFastSenderIPSuffex = trimmedInput;
+      }
+
+      // Prepare upload with FastSender mode
+      let prepareResult;
+      if (hasFolders && folderPath) {
+        prepareResult = await proxyPost("/api/self/v1/prepare-upload", {
+          ...fastSenderParams,
+          useFolderUpload: true,
+          folderPath: folderPath,
+          ...(hasExtraFiles && { files: filesMap }),
+        });
+      } else {
+        prepareResult = await proxyPost("/api/self/v1/prepare-upload", {
+          ...fastSenderParams,
+          files: filesMap,
+        });
+      }
+
+      if (prepareResult.status !== 200) {
+        throw new Error(prepareResult.data?.error || `Prepare upload failed: ${prepareResult.status}`);
+      }
+
+      const { sessionId, files: tokens } = prepareResult.data.data;
+
+      progress = progress.map((p) => ({ ...p, status: 'uploading' }));
+      setUploadProgress(progress);
+
+      // Upload text files individually
+      for (const textFile of textFiles) {
+        try {
+          const textBytes = new TextEncoder().encode(textFile.textContent || "");
+          const uploadResult = await proxyPost(
+            `/api/self/v1/upload?sessionId=${sessionId}&fileId=${textFile.id}&token=${tokens[textFile.id]}`,
+            undefined,
+            Array.from(textBytes)
+          );
+
+          if (uploadResult.status === 200) {
+            progress = progress.map((p) => 
+              p.fileId === textFile.id ? { ...p, status: 'done' } : p
+            );
+          } else {
+            progress = progress.map((p) => 
+              p.fileId === textFile.id 
+                ? { ...p, status: 'error', error: uploadResult.data?.error || 'Upload failed' }
+                : p
+            );
+          }
+        } catch (error) {
+          progress = progress.map((p) => 
+            p.fileId === textFile.id 
+              ? { ...p, status: 'error', error: String(error) }
+              : p
+          );
+        }
+      }
+
+      // Upload folders and regular files
+      const hasFilesToUpload = hasFolders || regularFiles.length > 0;
+      
+      if (hasFilesToUpload) {
+        let batchUploadResult;
+        
+        if (hasFolders && folderPath) {
+          const extraFiles = regularFiles.map((fileInfo) => ({
+            fileId: fileInfo.id,
+            token: tokens[fileInfo.id] || "",
+            fileUrl: `file://${fileInfo.sourcePath}`,
+          }));
+
+          batchUploadResult = await proxyPost("/api/self/v1/upload-batch", {
+            sessionId: sessionId,
+            useFolderUpload: true,
+            folderPath: folderPath,
+            ...(extraFiles.length > 0 && { files: extraFiles }),
+          });
+        } else {
+          const batchFiles = regularFiles.map((fileInfo) => ({
+            fileId: fileInfo.id,
+            token: tokens[fileInfo.id] || "",
+            fileUrl: `file://${fileInfo.sourcePath}`,
+          }));
+
+          batchUploadResult = await proxyPost("/api/self/v1/upload-batch", {
+            sessionId: sessionId,
+            files: batchFiles,
+          });
+        }
+
+        if (batchUploadResult.status === 200 || batchUploadResult.status === 207) {
+          const result = batchUploadResult.data?.result;
+          if (result?.results) {
+            if (hasFolders) {
+              progress = progress.map((p) => {
+                if (folderItems.some((f) => f.id === p.fileId)) {
+                  return { ...p, status: 'done' };
+                }
+                return p;
+              });
+            }
+            progress = progress.map((p) => {
+              const uploadResult = result.results.find((r: any) => r.fileId === p.fileId);
+              if (uploadResult?.success) {
+                return { ...p, status: 'done' };
+              } else if (uploadResult && !uploadResult.success) {
+                return { ...p, status: 'error', error: uploadResult?.error || 'Upload failed' };
+              }
+              return p;
+            });
+          } else {
+            progress = progress.map((p) => {
+              if (folderItems.some((f) => f.id === p.fileId) || regularFiles.some((f) => f.id === p.fileId)) {
+                return { ...p, status: 'done' };
+              }
+              return p;
+            });
+          }
+        } else {
+          progress = progress.map((p) => {
+            if (folderItems.some((f) => f.id === p.fileId) || regularFiles.some((f) => f.id === p.fileId)) {
+              return { ...p, status: 'error', error: batchUploadResult.data?.error || 'Upload failed' };
+            }
+            return p;
+          });
+        }
+      }
+
+      setUploadProgress(progress);
+
+      const allDone = progress.every((p) => p.status === 'done');
+      const hasErrors = progress.some((p) => p.status === 'error');
+
+      if (allDone) {
+        toaster.toast({
+          title: t("common.success"),
+          body: `${selectedFiles.length} ${t("common.files")}`,
+        });
+        clearFiles();
+      } else if (hasErrors) {
+        const successCount = progress.filter((p) => p.status === 'done').length;
+        const failedCount = progress.filter((p) => p.status === 'error').length;
+        toaster.toast({
+          title: t("common.success") + "/" + t("common.failed"),
+          body: `${successCount}/${failedCount}`,
+        });
+      }
+    } catch (error) {
+      toaster.toast({
+        title: t("common.error"),
+        body: String(error),
+      });
+      setUploadProgress((prev) =>
+        prev.map((p) => ({ ...p, status: 'error', error: String(error) }))
+      );
+    } finally {
+      setUploading(false);
+    }
   };
 
   // Handle screenshot gallery (experimental)
@@ -278,275 +520,6 @@ function Content() {
     );
   };
 
-  // Reload config from backend
-  const reloadConfig = async () => {
-    try {
-      const result = await getBackendConfig();
-      setConfigAlias(result.alias ?? "");
-      setDownloadFolder(result.download_folder ?? "");
-      setScanMode(configToScanMode(!!result.legacy_mode, !!result.use_mixed_scan));
-      setSkipNotify(!!result.skip_notify);
-      setMulticastAddress(result.multicast_address ?? "");
-      setMulticastPort(result.multicast_port ? String(result.multicast_port) : "");
-      setPin(result.pin ?? "");
-      setAutoSave(!!result.auto_save);
-      setUseHttps(result.use_https !== false);
-      setNotifyOnDownload(!!result.notify_on_download);
-      setSaveReceiveHistory(result.save_receive_history !== false);
-      setEnableExperimental(!!result.enable_experimental);
-      setDisableInfoLogging(!!result.disable_info_logging);
-      setScanTimeout(result.scan_timeout ? String(result.scan_timeout) : "500");
-    } catch (error) {
-      console.error("Failed to reload config:", error);
-    }
-  };
-
-  // save config
-  const saveConfig = async (updates: {
-    alias?: string;
-    download_folder?: string;
-    scan_mode?: ScanMode;
-    skip_notify?: boolean;
-    multicast_address?: string;
-    multicast_port?: string;
-    pin?: string;
-    auto_save?: boolean;
-    use_https?: boolean;
-    notify_on_download?: boolean;
-    save_receive_history?: boolean;
-    enable_experimental?: boolean;
-    disable_info_logging?: boolean;
-    scan_timeout?: string;
-  }) => {
-    try {
-      const currentScanMode = updates.scan_mode ?? scanMode;
-      const scanModeFlags = scanModeToConfig(currentScanMode);
-      const result = await setBackendConfig({
-        alias: updates.alias ?? configAlias,
-        download_folder: updates.download_folder ?? downloadFolder,
-        legacy_mode: scanModeFlags.legacy_mode,
-        use_mixed_scan: scanModeFlags.use_mixed_scan,
-        skip_notify: updates.skip_notify ?? skipNotify,
-        multicast_address: updates.multicast_address ?? multicastAddress,
-        multicast_port: updates.multicast_port ?? multicastPort,
-        pin: updates.pin ?? pin,
-        auto_save: updates.auto_save ?? autoSave,
-        use_https: updates.use_https ?? useHttps,
-        notify_on_download: updates.notify_on_download ?? notifyOnDownload,
-        save_receive_history: updates.save_receive_history ?? saveReceiveHistory,
-        enable_experimental: updates.enable_experimental ?? enableExperimental,
-        disable_info_logging: updates.disable_info_logging ?? disableInfoLogging,
-        scan_timeout: updates.scan_timeout ?? scanTimeout,
-      });
-      if (!result.success) {
-        throw new Error(result.error ?? "Unknown error");
-      }
-      // Reload config from backend to ensure UI is in sync
-      await reloadConfig();
-      toaster.toast({
-        title: t("config.configSaved"),
-        body:  t("config.restartToTakeEffect"),
-      });
-    } catch (error) {
-      toaster.toast({
-        title: t("toast.failedSaveConfig"),
-        body: `${error}`,
-      });
-    }
-  };
-
-  const handleEditAlias = async () => {
-    const value = await openInputModal(t("config.alias"), t("modal.enterAlias"));
-    if (value !== null) {
-      const newValue = value.trim();
-      setConfigAlias(newValue);
-      await saveConfig({ alias: newValue });
-    }
-  };
-
-  const handleEditMulticastAddress = async () => {
-    const value = await openInputModal(t("config.multicastAddress"), t("modal.enterMulticastAddress"));
-    if (value !== null) {
-      const newValue = value.trim();
-      setMulticastAddress(newValue);
-      await saveConfig({ multicast_address: newValue });
-    }
-  };
-
-  const handleEditDownloadFolder = async () => {
-    const value = await openInputModal(t("config.downloadFolder"), t("modal.enterDownloadFolder"));
-    if (value !== null) {
-      const newValue = value.trim();
-      setDownloadFolder(newValue);
-      await saveConfig({ download_folder: newValue });
-    }
-  };
-
-  const handleEditMulticastPort = async () => {
-    const value = await openInputModal(t("config.multicastPort"), t("modal.enterMulticastPort"));
-    if (value !== null) {
-      const newValue = value.trim();
-      setMulticastPort(newValue);
-      await saveConfig({ multicast_port: newValue });
-    }
-  };
-
-  const handleEditPin = async () => {
-    const value = await openInputModal(t("config.pin"), t("modal.enterPin"));
-    if (value !== null) {
-      const newValue = value.trim();
-      setPin(newValue);
-      await saveConfig({ pin: newValue });
-    }
-  };
-
-  const handleEditScanTimeout = async () => {
-    const value = await openInputModal(t("config.scanTimeout"), t("modal.enterScanTimeout"));
-    if (value !== null) {
-      const newValue = value.trim();
-      setScanTimeout(newValue);
-      await saveConfig({ scan_timeout: newValue });
-    }
-  };
-
-  const handleClearPin = () => {
-    const modal = showModal(
-      <ConfirmModal
-        title={t("config.clearPinTitle")}
-        message={t("config.clearPinMessage")}
-        confirmText={t("common.clear")}
-        cancelText={t("common.cancel")}
-        onConfirm={async () => {
-          setPin("");
-          await saveConfig({ pin: "" });
-        }}
-        closeModal={() => modal.Close()}
-      />
-    );
-  };
-
-  const handleScanModeChange = async (value: number) => {
-    const mode = value as ScanMode;
-    setScanMode(mode);
-    await saveConfig({ scan_mode: mode });
-  };
-
-  const handleToggleSkipNotify = async (checked: boolean) => {
-    setSkipNotify(checked);
-    await saveConfig({ skip_notify: checked });
-  };
-
-  const handleToggleAutoSave = async (checked: boolean) => {
-    setAutoSave(checked);
-    await saveConfig({ auto_save: checked });
-  };
-
-  const handleToggleUseHttps = async (checked: boolean) => {
-    setUseHttps(checked);
-    await saveConfig({ use_https: checked });
-  };
-
-  const handleToggleNotifyOnDownload = async (checked: boolean) => {
-    setNotifyOnDownload(checked);
-    await saveConfig({ notify_on_download: checked });
-  };
-
-  const handleToggleSaveReceiveHistory = async (checked: boolean) => {
-    setSaveReceiveHistory(checked);
-    await saveConfig({ save_receive_history: checked });
-  };
-
-  const handleToggleExperimental = async (checked: boolean) => {
-    setEnableExperimental(checked);
-    // Save config without showing restart toast
-    try {
-      const currentScanMode = scanMode;
-      const scanModeFlags = scanModeToConfig(currentScanMode);
-      const result = await setBackendConfig({
-        alias: configAlias,
-        download_folder: downloadFolder,
-        legacy_mode: scanModeFlags.legacy_mode,
-        use_mixed_scan: scanModeFlags.use_mixed_scan,
-        skip_notify: skipNotify,
-        multicast_address: multicastAddress,
-        multicast_port: multicastPort,
-        pin: pin,
-        auto_save: autoSave,
-        use_https: useHttps,
-        notify_on_download: notifyOnDownload,
-        save_receive_history: saveReceiveHistory,
-        enable_experimental: checked,
-        disable_info_logging: disableInfoLogging,
-        scan_timeout: scanTimeout,
-      });
-      if (!result.success) {
-        throw new Error(result.error ?? "Unknown error");
-      }
-      // Reload config from backend to ensure UI is in sync
-      await reloadConfig();
-    } catch (error) {
-      toaster.toast({
-        title: t("toast.failedSaveConfig"),
-        body: `${error}`,
-      });
-    }
-  };
-
-  const handleToggleDisableInfoLogging = async (checked: boolean) => {
-    setDisableInfoLogging(checked);
-    await saveConfig({ disable_info_logging: checked });
-  };
-  
-  // Handle factory reset
-  const handleFactoryReset = () => {
-    const modal = showModal(
-      <ConfirmModal
-        title={t("settings.factoryResetTitle")}
-        message={t("settings.factoryResetMessage")}
-        confirmText={t("common.reset")}
-        cancelText={t("common.cancel")}
-        onConfirm={async () => {
-          try {
-            const result = await factoryReset();
-            if (result.success) {
-              // Reset local state to defaults
-              setConfigAlias("");
-              setDownloadFolder("");
-              setScanMode(ScanMode.Normal);
-              setSkipNotify(false);
-              setMulticastAddress("");
-              setMulticastPort("");
-              setPin("");
-              setAutoSave(true);
-              setUseHttps(true);
-              setNotifyOnDownload(false);
-              setSaveReceiveHistory(true);
-              setEnableExperimental(false);
-              setDisableInfoLogging(false);
-              setScanTimeout("500");
-              setBackend({ running: false, url: "https://127.0.0.1:53317" });
-              resetAll();
-              setUploadProgress([]);
-              
-              toaster.toast({
-                title: t("settings.factoryResetComplete"),
-                body: t("settings.allSettingsReset"),
-              });
-            } else {
-              throw new Error(result.error ?? "Unknown error");
-            }
-          } catch (error) {
-            toaster.toast({
-              title: t("toast.factoryResetFailed"),
-              body: String(error),
-            });
-          }
-        }}
-        closeModal={() => modal.Close()}
-      />
-    );
-  };
-
   return (
     <>
       <PanelSection title={t("backend.title")}>
@@ -568,8 +541,23 @@ function Content() {
             {scanLoading ? t("backend.scanning") : t("backend.scanNow")}
           </ButtonItem>
         </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={handleReloadConfig}>
+            {t("config.reloadConfig")}
+          </ButtonItem>
+        </PanelSectionRow>
       </PanelSection>
       <PanelSection title={t("networkInfo.title")}>
+        <PanelSectionRow>
+          <Field label={t("networkInfo.deviceName")}>
+            {deviceAlias || "-"}
+          </Field>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <Field label={t("networkInfo.port")}>
+            {devicePort}
+          </Field>
+        </PanelSectionRow>
         {networkInfo.length === 0 ? (
           <PanelSectionRow>
             <div>{t("networkInfo.noNetwork")}</div>
@@ -583,26 +571,14 @@ function Content() {
             </PanelSectionRow>
           ))
         )}
-        <PanelSectionRow>
-          <Field label={t("networkInfo.multicastPort")}>
-            {multicastPort || t("config.default")}
-          </Field>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <Field label={t("config.scanTimeout")}>
-            {scanTimeout || "500"}s
-          </Field>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ButtonItem layout="below" onClick={handleEditScanTimeout}>
-            {t("config.editScanTimeout")}
-          </ButtonItem>
-        </PanelSectionRow>
       </PanelSection>
       <DevicesPanel 
         devices={devices} 
         selectedDevice={selectedDevice}
         onSelectDevice={setSelectedDevice}
+        favorites={favorites}
+        onAddToFavorites={handleAddToFavorites}
+        onRemoveFromFavorites={handleRemoveFromFavorites}
       />
       <PanelSection title={t("upload.title")}>
         <PanelSectionRow>
@@ -645,6 +621,40 @@ function Content() {
             {uploading ? t("upload.uploading") : t("upload.confirmSend")}
           </ButtonItem>
         </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem
+            layout="below"
+            onClick={handleManualSend}
+            disabled={uploading || selectedFiles.length === 0}
+          >
+            {t("upload.manualSend")}
+          </ButtonItem>
+        </PanelSectionRow>
+        {/* Quick send to favorites */}
+        {selectedFiles.length > 0 && favorites.length > 0 && (
+          <>
+            <PanelSectionRow>
+              <Field label={t("upload.quickSendFavorites")}>{favorites.length}</Field>
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <Focusable style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {getOnlineFavorites().map((fav) => (
+                  <ButtonItem
+                    key={fav.fingerprint}
+                    layout="below"
+                    onClick={() => handleQuickSendToFavorite(fav.fingerprint)}
+                    disabled={uploading || !fav.online}
+                  >
+                    <span style={{ fontSize: '13px', opacity: fav.online ? 1 : 0.5 }}>
+                      {fav.online ? '🟢' : '⚫'} {t("upload.sendTo")} {fav.alias || fav.fingerprint.substring(0, 8)}
+                      {!fav.online && ` (${t("upload.deviceOffline")})`}
+                    </span>
+                  </ButtonItem>
+                ))}
+              </Focusable>
+            </PanelSectionRow>
+          </>
+        )}
         {selectedFiles.length > 0 && (
           <>
             <PanelSectionRow>
@@ -718,151 +728,16 @@ function Content() {
         )}
       </PanelSection>
       <ReceiveHistoryPanel saveReceiveHistory={saveReceiveHistory} />
-      <PanelSection title={t("config.title")}>
-        <PanelSectionRow>
-          <Field label={t("config.alias")}>
-            {configAlias || t("config.default")}
-          </Field>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ButtonItem layout="below" onClick={handleEditAlias}>
-            {t("config.editAlias")}
-          </ButtonItem>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <Field label={t("config.downloadFolder")}>
-            {downloadFolder || t("config.default")}
-          </Field>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ButtonItem layout="below" onClick={handleEditDownloadFolder}>
-            {t("config.editDownloadFolder")}
-          </ButtonItem>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ButtonItem layout="below" onClick={handleChooseDownloadFolder}>
-            {t("config.chooseDownloadFolder")}
-          </ButtonItem>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <Field label={t("config.multicastAddress")}>
-            {multicastAddress || t("config.default")}
-          </Field>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ButtonItem layout="below" onClick={handleEditMulticastAddress}>
-            {t("config.editMulticastAddress")}
-          </ButtonItem>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <Field label={t("config.multicastPort")}>
-            {multicastPort || t("config.default")}
-          </Field>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ButtonItem layout="below" onClick={handleEditMulticastPort}>
-            {t("config.editMulticastPort")}
-          </ButtonItem>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <SliderField
-            label={t("config.scanMode")}
-            description={t("config.scanModeDesc")}
-            value={scanMode}
-            min={0}
-            max={scanModeNotchLabels.length - 1}
-            notchCount={scanModeNotchLabels.length}
-            notchLabels={scanModeNotchLabels}
-            notchTicksVisible={true}
-            step={1}
-            onChange={handleScanModeChange}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ToggleField
-            label={t("config.skipNotify")}
-            description={t("config.skipNotifyDesc")}
-            checked={skipNotify}
-            onChange={handleToggleSkipNotify}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <Field label={t("config.pin")}>{pin ? t("config.pinConfigured") : t("config.pinNotSet")}</Field>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ButtonItem layout="below" onClick={handleEditPin}>
-            {t("config.editPin")}
-          </ButtonItem>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ButtonItem layout="below" onClick={handleClearPin} disabled={!pin}>
-            {t("config.clearPin")}
-          </ButtonItem>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ToggleField
-            label={t("config.autoSave")}
-            description={t("config.autoSaveDesc")}
-            checked={autoSave}
-            onChange={handleToggleAutoSave}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ToggleField
-            label={t("config.useHttps")}
-            description={t("config.useHttpsDesc")}
-            checked={useHttps}
-            onChange={handleToggleUseHttps}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ToggleField
-            label={t("config.notifyOnDownload")}
-            description={t("config.notifyOnDownloadDesc")}
-            checked={notifyOnDownload}
-            onChange={handleToggleNotifyOnDownload}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ToggleField
-            label={t("config.saveReceiveHistory")}
-            description={t("config.saveReceiveHistoryDesc")}
-            checked={saveReceiveHistory}
-            onChange={handleToggleSaveReceiveHistory}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ToggleField
-            label={t("config.disableInfoLogging")}
-            description={t("config.disableInfoLoggingDesc")}
-            checked={disableInfoLogging}
-            onChange={handleToggleDisableInfoLogging}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ToggleField
-            label={t("screenshot.experimental")}
-            description={t("screenshot.warning")}
-            checked={enableExperimental}
-            onChange={handleToggleExperimental}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ButtonItem layout="below" onClick={handleFactoryReset}>
-            {t("settings.resetAllData")}
-          </ButtonItem>
-        </PanelSectionRow>
-      </PanelSection>
-      <PanelSection title={t("about.title")}>
+      <PanelSection title={"Decky Localsend"}>
         <PanelSectionRow>
           <ButtonItem
             layout="below"
             onClick={() => {
               Router.CloseSideMenus();
-              Router.Navigate("/decky-localsend-about");
+              Router.Navigate("/decky-localsend-config");
             }}
           >
-            {t("about.aboutPlugin")}
+            {t("config.openConfig")}
           </ButtonItem>
         </PanelSectionRow>
       </PanelSection>
@@ -873,8 +748,8 @@ function Content() {
 
 
 export default definePlugin(() => {
-  // Register About page route
-  routerHook.addRoute("/decky-localsend-about", About, { exact: true });
+  // Register config page route (without exact to allow sub-routes)
+  routerHook.addRoute("/decky-localsend-config", ConfigPage);
 
   // Helper function to update device in store
   const updateDeviceInStore = (deviceData: any) => {
@@ -1030,14 +905,14 @@ export default definePlugin(() => {
     // The content of your plugin's menu
     content: <Content />,
     // The icon displayed in the plugin list
-    icon: <FaEnvelope />,
+    icon: <LuSendToBack />,
     // The function triggered when your plugin unloads
     onDismount() {
       console.log("Unloading");
       removeEventListener("unix_socket_notification", EmitEventListener);
       removeEventListener("text_received", TextReceivedListener);
       removeEventListener("file_received", FileReceivedListener);
-      routerHook.removeRoute("/decky-localsend-about");
+      routerHook.removeRoute("/decky-localsend-config");
     },
   };
 });

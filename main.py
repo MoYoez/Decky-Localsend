@@ -48,12 +48,14 @@ class Plugin:
         self.alias = ""
         self.pin = ""
         self.auto_save = False
+        self.auto_save_from_favorites = False
         self.use_https = True
         self.notify_on_download = True
         self.save_receive_history = True
         self.enable_experimental = False
         self.disable_info_logging = False
         self.scan_timeout = 500  # scan timeout in seconds, default 500
+        self.network_interface = "*"  # "*" means all interfaces
         
         # Unix Domain Socket notification server
         self.socket_path = "/tmp/localsend-notify.sock"
@@ -92,7 +94,9 @@ class Plugin:
             "multicast_port": self.multicast_port,
             "pin": self.pin,
             "auto_save": self.auto_save,
+            "auto_save_from_favorites": self.auto_save_from_favorites,
             "use_https": self.use_https,
+            "network_interface": self.network_interface,
             "notify_on_download": self.notify_on_download,
             "save_receive_history": self.save_receive_history,
             "enable_experimental": self.enable_experimental,
@@ -134,7 +138,9 @@ class Plugin:
                 self.multicast_port = 53317
             self.pin = str(data.get("pin", "")).strip()
             self.auto_save = bool(data.get("auto_save", self.auto_save))
+            self.auto_save_from_favorites = bool(data.get("auto_save_from_favorites", self.auto_save_from_favorites))
             self.use_https = bool(data.get("use_https", self.use_https))
+            self.network_interface = str(data.get("network_interface", self.network_interface)).strip() or "*"
             self.notify_on_download = bool(data.get("notify_on_download", self.notify_on_download))
             self.save_receive_history = bool(data.get("save_receive_history", self.save_receive_history))
             self.enable_experimental = bool(data.get("enable_experimental", False))
@@ -203,7 +209,9 @@ class Plugin:
             "multicast_port": self.multicast_port,
             "pin": self.pin,
             "auto_save": self.auto_save,
+            "auto_save_from_favorites": self.auto_save_from_favorites,
             "use_https": self.use_https,
+            "network_interface": self.network_interface,
             "notify_on_download": self.notify_on_download,
             "save_receive_history": self.save_receive_history,
             "enable_experimental": self.enable_experimental,
@@ -438,7 +446,7 @@ class Plugin:
             "-useDefaultUploadFolder",
             self.upload_dir,
             "-useReferNetworkInterface",
-            "*",  # set to all
+            self.network_interface,
         ]
         if self.multicast_address:
             cmd.extend(["-useMultcastAddress", self.multicast_address])
@@ -457,6 +465,7 @@ class Plugin:
         if self.scan_timeout > 0:
             cmd.extend(["-scanTimeout", str(self.scan_timeout)])
         cmd.append(f"-useAutoSave={'true' if self.auto_save else 'false'}")
+        cmd.append(f"-useAutoSaveFromFavorites={'true' if self.auto_save_from_favorites else 'false'}")
         cmd.append(f"-useHttps={'true' if self.use_https else 'false'}")
 
         self.process = subprocess.Popen(
@@ -551,6 +560,11 @@ class Plugin:
         data, status = await self._proxy_request("POST", path, **kwargs)
         return {"data": data, "status": status}
 
+    # used in frontend to delete data from backend.
+    async def proxy_delete(self, path: str):
+        data, status = await self._proxy_request("DELETE", path)
+        return {"data": data, "status": status}
+
     # used in frontend to get upload session records.
     async def get_upload_sessions(self):
         """Get upload session records"""
@@ -621,7 +635,9 @@ class Plugin:
             "multicast_port": self.multicast_port,
             "pin": self.pin,
             "auto_save": self.auto_save,
+            "auto_save_from_favorites": self.auto_save_from_favorites,
             "use_https": self.use_https,
+            "network_interface": self.network_interface,
             "notify_on_download": self.notify_on_download,
             "save_receive_history": self.save_receive_history,
             "enable_experimental": self.enable_experimental,
@@ -639,7 +655,9 @@ class Plugin:
         multicast_port_raw = config.get("multicast_port", 0)
         pin = str(config.get("pin", "")).strip()
         auto_save = bool(config.get("auto_save", True))
+        auto_save_from_favorites = bool(config.get("auto_save_from_favorites", False))
         use_https = bool(config.get("use_https", True))
+        network_interface = str(config.get("network_interface", "*")).strip() or "*"
         notify_on_download = bool(config.get("notify_on_download", False))
         save_receive_history = bool(config.get("save_receive_history", True))
         enable_experimental = bool(config.get("enable_experimental", False))
@@ -665,7 +683,9 @@ class Plugin:
             self.multicast_port = 0
         self.pin = pin
         self.auto_save = auto_save
+        self.auto_save_from_favorites = auto_save_from_favorites
         self.use_https = use_https
+        self.network_interface = network_interface
         self.notify_on_download = notify_on_download
         self.save_receive_history = save_receive_history
         self.enable_experimental = enable_experimental
@@ -735,7 +755,9 @@ class Plugin:
             self.multicast_port = 53317
             self.pin = ""
             self.auto_save = True
+            self.auto_save_from_favorites = False
             self.use_https = True
+            self.network_interface = "*"
             self.notify_on_download = False
             self.save_receive_history = True
             self.disable_info_logging = False

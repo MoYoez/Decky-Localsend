@@ -19,6 +19,8 @@ export const zhCN: TranslationKeys = {
   // Network Info Section
   networkInfo: {
     title: "信息",
+    deviceName: "设备名称",
+    port: "端口",
     number: "编号",
     ipAddress: "IP 地址",
     multicastPort: "多播端口",
@@ -35,6 +37,9 @@ export const zhCN: TranslationKeys = {
     addText: "添加文本",
     confirmSend: "确认发送",
     uploading: "上传中...",
+    quickSendFavorites: "快捷发送到收藏",
+    sendTo: "发送到",
+    deviceOffline: "离线",
     selectedFiles: "已选文件",
     clearFiles: "清空文件",
     uploadProgress: "上传进度",
@@ -42,11 +47,17 @@ export const zhCN: TranslationKeys = {
     readyToSend: "准备以 .txt 发送",
     folderAdded: "文件夹已添加",
     folderFiles: "个文件",
+    manualSend: "手动发送",
   },
 
   // Configuration Section
   config: {
     title: "配置",
+    openConfig: "打开配置",
+    basicConfig: "基本设置",
+    networkConfig: "网络设置",
+    securityConfig: "安全设置",
+    advancedConfig: "高级设置",
     alias: "别名",
     default: "默认",
     editAlias: "编辑别名",
@@ -72,7 +83,25 @@ export const zhCN: TranslationKeys = {
     clearPinTitle: "清除 PIN",
     clearPinMessage: "确定要清除 PIN 码吗？",
     autoSave: "自动保存",
-    autoSaveDesc: "关闭后，接收文件前需要确认",
+    autoSaveDesc: "自动接受所有设备的文件",
+    autoSaveFromFavorites: "收藏设备自动保存",
+    autoSaveFromFavoritesDesc: "仅对收藏设备自动接受文件",
+    favorites: "收藏设备",
+    favoritesDesc: "管理收藏的设备",
+    favoritesEmpty: "暂无收藏设备",
+    favoritesAdd: "添加到收藏",
+    refreshFavoritesDevices: "刷新收藏夹设备",
+    favoritesRemove: "移除",
+    favoritesAdded: "已添加到收藏",
+    favoritesRemoved: "已从收藏移除",
+    removeFavoriteConfirm: "确定要移除此收藏设备吗？",
+    scanningDevices: "正在扫描设备…",
+    editFavoriteAlias: "编辑收藏名称",
+    deviceAlias: "设备名称",
+    favoritesManage: "管理收藏",
+    networkInterface: "网络接口",
+    networkInterfaceDesc: "选择扫描设备使用的网络接口",
+    networkInterfaceAll: "全部接口",
     useHttps: "使用加密",
     useHttpsDesc: "启用加密连接 (HTTPS)。关闭后使用非加密连接 (HTTP)",
     notifyOnDownload: "下载完成后提示",
@@ -89,12 +118,16 @@ export const zhCN: TranslationKeys = {
     backendRestarted: "后端已重启",
     restartToTakeEffect: "重启后端以生效",
     configUpdated: "配置已更新",
+    reloadConfig: "重载配置",
+    reloadConfigDesc: "从当前保存的配置重新加载到界面",
+    configReloaded: "配置已重载",
   },
 
   // Settings Section
   settings: {
     title: "设置",
     resetAllData: "重置所有数据",
+    resetAllDataConfirm: "确定要将所有设置重置为默认值吗？这将删除所有配置文件并停止后端。",
     factoryResetTitle: "重置所有数据",
     factoryResetMessage: "确定要将所有设置重置为默认值吗？这将删除所有配置文件并停止后端。",
     resetComplete: "重置完成",
@@ -129,6 +162,7 @@ export const zhCN: TranslationKeys = {
     success: "成功",
     failed: "失败",
     files: "个文件",
+    devices: "台设备",
   },
 
   // Modals
@@ -141,6 +175,7 @@ export const zhCN: TranslationKeys = {
     enterMulticastPort: "输入组播端口",
     enterPin: "输入 PIN 码",
     enterScanTimeout: "输入扫描超时时间（秒）",
+    enterIpOrSuffix: "输入 IP 地址或后缀（例如 123 或 192.168.1.123）",
   },
 
   // Toasts

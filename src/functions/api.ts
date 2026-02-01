@@ -69,7 +69,9 @@ export const getBackendConfig = callable<
     multicast_port: number;
     pin: string;
     auto_save: boolean;
+    auto_save_from_favorites: boolean;
     use_https: boolean;
+    network_interface: string;
     notify_on_download: boolean;
     save_receive_history: boolean;
     enable_experimental: boolean;
@@ -90,7 +92,9 @@ export const setBackendConfig = callable<
       multicast_port: number | string;
       pin: string;
       auto_save: boolean;
+      auto_save_from_favorites: boolean;
       use_https: boolean;
+      network_interface: string;
       notify_on_download: boolean;
       save_receive_history: boolean;
       enable_experimental: boolean;

@@ -1,5 +1,4 @@
 export const en = {
-  // Backend Section
   backend: {
     title: "LocalSend Backend",
     status: "Backend Status",
@@ -17,6 +16,8 @@ export const en = {
   // Network Info Section
   networkInfo: {
     title: "Info",
+    deviceName: "Device Name",
+    port: "Port",
     number: "Number",
     ipAddress: "IP Address",
     multicastPort: "Multicast Port",
@@ -33,6 +34,9 @@ export const en = {
     addText: "Add Text",
     confirmSend: "Confirm Send",
     uploading: "Uploading...",
+    quickSendFavorites: "Quick Send to Favorites",
+    sendTo: "Send to",
+    deviceOffline: "Offline",
     selectedFiles: "Selected Files",
     clearFiles: "Clear Files",
     uploadProgress: "Upload Progress",
@@ -40,11 +44,17 @@ export const en = {
     readyToSend: "Ready to send as .txt",
     folderAdded: "Folder added",
     folderFiles: "files",
+    manualSend: "Manual Send",
   },
 
   // Configuration Section
   config: {
     title: "Configuration",
+    openConfig: "Open Configuration",
+    basicConfig: "Basic",
+    networkConfig: "Network",
+    securityConfig: "Security",
+    advancedConfig: "Advanced",
     alias: "Alias",
     default: "Default",
     editAlias: "Edit Alias",
@@ -70,7 +80,25 @@ export const en = {
     clearPinTitle: "Clear PIN",
     clearPinMessage: "Are you sure you want to clear the PIN?",
     autoSave: "Auto Save",
-    autoSaveDesc: "If disabled, require confirmation before receiving",
+    autoSaveDesc: "Auto accept files from all devices",
+    autoSaveFromFavorites: "Auto Save from Favorites",
+    autoSaveFromFavoritesDesc: "Auto accept files from favorite devices only",
+    favorites: "Favorite Devices",
+    favoritesDesc: "Manage your favorite devices",
+    favoritesEmpty: "No favorite devices",
+    favoritesAdd: "Add to Favorites",
+    refreshFavoritesDevices: "Refresh Favorite Devices",
+    favoritesRemove: "Remove",
+    favoritesAdded: "Added to favorites",
+    favoritesRemoved: "Removed from favorites",
+    removeFavoriteConfirm: "Remove this device from favorites?",
+    scanningDevices: "Scanning for devices…",
+    editFavoriteAlias: "Edit Favorite Name",
+    deviceAlias: "Device Name",
+    favoritesManage: "Manage Favorites",
+    networkInterface: "Network Interface",
+    networkInterfaceDesc: "Select network interface for device scanning",
+    networkInterfaceAll: "All Interfaces",
     useHttps: "Use Encrypted Connection",
     useHttpsDesc: "Enable encrypted connection (HTTPS). Disable for unencrypted (HTTP)",
     notifyOnDownload: "Notify on Download Complete",
@@ -87,12 +115,16 @@ export const en = {
     backendRestarted: "Backend restarted",
     restartToTakeEffect: "Restart backend to take effect",
     configUpdated: "Config updated",
+    reloadConfig: "Reload Config",
+    reloadConfigDesc: "Reload current saved config into the form",
+    configReloaded: "Config reloaded",
   },
 
   // Settings Section
   settings: {
     title: "Settings",
     resetAllData: "Reset All Data",
+    resetAllDataConfirm: "Are you sure you want to reset all settings to default? This will delete all configuration files and stop the backend.",
     factoryResetTitle: "Reset All Data",
     factoryResetMessage: "Are you sure you want to reset all settings to default?\n\nThis will delete all configuration files and stop the backend.",
     resetComplete: "Reset Complete",
@@ -127,6 +159,7 @@ export const en = {
     success: "Success",
     failed: "Failed",
     files: "file(s)",
+    devices: "device(s)",
   },
 
   // Modals
@@ -139,6 +172,7 @@ export const en = {
     enterMulticastPort: "Enter multicast port",
     enterPin: "Enter PIN",
     enterScanTimeout: "Enter scan timeout (seconds)",
+    enterIpOrSuffix: "Enter IP address or suffix (e.g. 123 or 192.168.1.123)",
   },
 
   // Toasts

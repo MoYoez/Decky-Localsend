@@ -5,7 +5,7 @@ import { FaGithub } from "react-icons/fa";
 
 export const About: FC = () => {
   return (
-    <div style={{margin: "100px"}}>
+    <div>
       <h2
         style={{ fontWeight: "bold", fontSize: "1.5em", marginBottom: "0px" }}
       >
