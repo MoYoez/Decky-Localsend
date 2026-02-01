@@ -24,8 +24,8 @@ type FileInfo = {
   fileCount?: number;
 };
 
-// Share link session with expiry tracking
-interface ShareLinkSessionWithExpiry {
+// Share link session with expiry tracking (exported for SharedViaLinkPage)
+export interface ShareLinkSessionWithExpiry {
   sessionId: string;
   downloadUrl: string;
   createdAt: number; // timestamp
@@ -53,9 +53,11 @@ interface LocalSendStore {
   removeFile: (fileId: string) => void;
   clearFiles: () => void;
 
-  // Share via link session (preserved when navigating to SharedViaLinkPage)
-  shareLinkSession: ShareLinkSessionWithExpiry | null;
-  setShareLinkSession: (session: ShareLinkSessionWithExpiry | null) => void;
+  // Share via link sessions (multiple active shares)
+  shareLinkSessions: ShareLinkSessionWithExpiry[];
+  addShareLinkSession: (session: ShareLinkSessionWithExpiry) => void;
+  removeShareLinkSession: (sessionId: string) => void;
+  clearShareLinkSessions: () => void;
 
   // Pending share (files to share, before creating session)
   pendingShare: PendingShare | null;
@@ -75,7 +77,7 @@ export const useLocalSendStore = create<LocalSendStore>((set) => ({
   devices: [],
   selectedDevice: null,
   selectedFiles: [],
-  shareLinkSession: null,
+  shareLinkSessions: [],
   pendingShare: null,
   favorites: [],
 
@@ -115,7 +117,15 @@ export const useLocalSendStore = create<LocalSendStore>((set) => ({
   
   clearFiles: () => set({ selectedFiles: [] }),
 
-  setShareLinkSession: (session) => set({ shareLinkSession: session }),
+  addShareLinkSession: (session) =>
+    set((state) => ({
+      shareLinkSessions: [...state.shareLinkSessions, session],
+    })),
+  removeShareLinkSession: (sessionId) =>
+    set((state) => ({
+      shareLinkSessions: state.shareLinkSessions.filter((s) => s.sessionId !== sessionId),
+    })),
+  clearShareLinkSessions: () => set({ shareLinkSessions: [] }),
 
   setPendingShare: (pending) => set({ pendingShare: pending }),
 
@@ -126,7 +136,7 @@ export const useLocalSendStore = create<LocalSendStore>((set) => ({
     devices: [],
     selectedDevice: null,
     selectedFiles: [],
-    shareLinkSession: null,
+    shareLinkSessions: [],
     pendingShare: null,
     favorites: [],
   }),

@@ -53,11 +53,7 @@ You can customize these settings through the plugin interface.
 
 ## TODO
 
-- Localsend's official functions. E.G. Save Favorite Device
-
-- Search From reference internet interface,(have done in current api backend)
-
-- Web-Based Transfer when receiver dont's have client. (Shared as Link function)
+- None
 
 ## Known Issues
 

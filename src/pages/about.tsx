@@ -2,6 +2,11 @@ import { FC } from "react";
 import { ButtonItem, PanelSectionRow, Navigation } from "@decky/ui";
 import { FiGithub } from "react-icons/fi";
 import { FaGithub } from "react-icons/fa";
+import { t } from "../i18n";
+
+const PROTOCOL_GITHUB_URL = "https://github.com/localsend/protocol";
+const PLUGIN_GITHUB_URL = "https://github.com/MoYoez/Decky-Localsend";
+const DEVELOPER_GITHUB_URL = "https://github.com/MoYoez";
 
 export const About: FC = () => {
   return (
@@ -9,42 +14,56 @@ export const About: FC = () => {
       <h2
         style={{ fontWeight: "bold", fontSize: "1.5em", marginBottom: "0px" }}
       >
-        Decky Localsend Plugin
+        {t("about.pluginTitle")}
       </h2>
-      <span>
-        A plugin for Decky Loader that brings LocalSend functionality to Steam Deck in gaming mode.
+      <span style={{ marginBottom: "10px 10px" }}>
+        {t("about.pluginDesc")}
         <br />
       </span>
       <PanelSectionRow>
-        <span>If you like this plugin, please consider giving it a star on GitHub!</span>
+        <span>{t("about.starOnGitHub")}</span>
         <ButtonItem
           icon={<FiGithub style={{ display: "block" }} />}
-          label="Decky Localsend Plugin"
+          label={t("about.pluginRepo")}
           onClick={() => {
-            Navigation.NavigateToExternalWeb(
-              "https://github.com/MoYoez/Decky-Localsend"
-            );
+            Navigation.NavigateToExternalWeb(PLUGIN_GITHUB_URL);
           }}
         >
-          GitHub Repo
+          {t("about.githubRepo")}
         </ButtonItem>
       </PanelSectionRow>
-      <h2
+      <h3
         style={{ fontWeight: "bold", fontSize: "1.5em", marginBottom: "0px" }}
       >
-        Developer
-      </h2>
+        {t("about.developer")}
+      </h3>
       <PanelSectionRow>
         <ButtonItem
           icon={<FaGithub style={{ display: "block" }} />}
           label="MoeMagicMango"
           onClick={() => {
-            Navigation.NavigateToExternalWeb(
-              "https://github.com/MoYoez"
-            );
+            Navigation.NavigateToExternalWeb(DEVELOPER_GITHUB_URL);
           }}
         >
-          GitHub Profile
+          {t("about.githubProfile")}
+        </ButtonItem>
+      </PanelSectionRow>
+
+      <h2
+        style={{ fontWeight: "bold", fontSize: "1.5em", marginBottom: "5px" }}
+      >
+        {t("about.dependencies")}
+      </h2>
+      <PanelSectionRow>
+        <span>{t("about.protocolDesc")}</span>
+        <ButtonItem
+          icon={<FiGithub style={{ display: "block" }} />}
+          label={t("about.protocolRepo")}
+          onClick={() => {
+            Navigation.NavigateToExternalWeb(PROTOCOL_GITHUB_URL);
+          }}
+        >
+          {t("about.githubRepo")}
         </ButtonItem>
       </PanelSectionRow>
     </div>

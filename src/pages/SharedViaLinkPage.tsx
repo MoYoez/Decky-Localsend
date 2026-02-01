@@ -1,4 +1,4 @@
-import { FC, useEffect, useState, CSSProperties } from "react";
+import { FC, useEffect, useState, useCallback, CSSProperties } from "react";
 import {
   PanelSection,
   PanelSectionRow,
@@ -10,7 +10,7 @@ import {
   showModal,
 } from "@decky/ui";
 import { toaster } from "@decky/api";
-import { useLocalSendStore } from "../utils/store";
+import { useLocalSendStore, type ShareLinkSessionWithExpiry } from "../utils/store";
 import { closeShareSession, createShareSession } from "../functions/shareHandlers";
 import { copyToClipboard } from "../utils/copyClipBoard";
 import { getBackendStatus } from "../functions";
@@ -20,9 +20,15 @@ import { t } from "../i18n";
 // One hour in milliseconds
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
+function getRemaining(session: ShareLinkSessionWithExpiry): number {
+  const elapsed = Date.now() - session.createdAt;
+  return Math.max(0, ONE_HOUR_MS - elapsed);
+}
+
 export const SharedViaLinkPage: FC = () => {
-  const shareLinkSession = useLocalSendStore((state) => state.shareLinkSession);
-  const setShareLinkSession = useLocalSendStore((state) => state.setShareLinkSession);
+  const shareLinkSessions = useLocalSendStore((state) => state.shareLinkSessions);
+  const addShareLinkSession = useLocalSendStore((state) => state.addShareLinkSession);
+  const removeShareLinkSession = useLocalSendStore((state) => state.removeShareLinkSession);
   const pendingShare = useLocalSendStore((state) => state.pendingShare);
   const setPendingShare = useLocalSendStore((state) => state.setPendingShare);
 
@@ -34,8 +40,29 @@ export const SharedViaLinkPage: FC = () => {
   const [autoAccept, setAutoAccept] = useState(true);
   const [creating, setCreating] = useState(false);
 
-  // Expiry timer
-  const [remainingTime, setRemainingTime] = useState<number | null>(null);
+  // Tick every second to update remaining times and auto-remove expired sessions
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const sessions = useLocalSendStore.getState().shareLinkSessions;
+      if (sessions.length === 0) return;
+      const now = Date.now();
+      for (const session of sessions) {
+        const remaining = ONE_HOUR_MS - (now - session.createdAt);
+        if (remaining <= 0) {
+          try {
+            await closeShareSession(session.sessionId);
+          } catch {
+            // ignore
+          }
+          useLocalSendStore.getState().removeShareLinkSession(session.sessionId);
+          toaster.toast({ title: t("shareLink.expired"), body: "" });
+        }
+      }
+      setTick((n) => n + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Check backend status
   useEffect(() => {
@@ -44,61 +71,25 @@ export const SharedViaLinkPage: FC = () => {
       .catch(() => setBackendRunning(false));
   }, []);
 
-  // Update remaining time every second
-  useEffect(() => {
-    if (!shareLinkSession?.createdAt) {
-      setRemainingTime(null);
-      return;
-    }
-
-    const updateRemaining = () => {
-      const elapsed = Date.now() - shareLinkSession.createdAt;
-      const remaining = ONE_HOUR_MS - elapsed;
-      if (remaining <= 0) {
-        // Session expired - auto close
-        setRemainingTime(0);
-        handleExpired();
-      } else {
-        setRemainingTime(remaining);
-      }
-    };
-
-    updateRemaining();
-    const interval = setInterval(updateRemaining, 1000);
-    return () => clearInterval(interval);
-  }, [shareLinkSession?.createdAt]);
-
-  // Handle session expiry
-  const handleExpired = async () => {
-    if (shareLinkSession) {
-      try {
-        await closeShareSession(shareLinkSession.sessionId);
-      } catch {
-        // Ignore errors on expiry cleanup
-      }
-      setShareLinkSession(null);
-      toaster.toast({ title: t("shareLink.expired"), body: "" });
-    }
-  };
-
-  const handleCopy = async () => {
-    if (!shareLinkSession) return;
-    const ok = await copyToClipboard(shareLinkSession.downloadUrl);
+  const handleCopy = useCallback(async (session: ShareLinkSessionWithExpiry) => {
+    const ok = await copyToClipboard(session.downloadUrl);
     if (ok) {
       toaster.toast({ title: t("shareLink.copied"), body: "" });
     }
-  };
+  }, []);
 
-  const handleCloseSession = async () => {
-    if (!shareLinkSession) return;
-    try {
-      await closeShareSession(shareLinkSession.sessionId);
-      setShareLinkSession(null);
-      toaster.toast({ title: t("shareLink.shareEnded"), body: "" });
-    } catch (error) {
-      toaster.toast({ title: t("common.error"), body: String(error) });
-    }
-  };
+  const handleCloseSession = useCallback(
+    async (session: ShareLinkSessionWithExpiry) => {
+      try {
+        await closeShareSession(session.sessionId);
+        removeShareLinkSession(session.sessionId);
+        toaster.toast({ title: t("shareLink.shareEnded"), body: "" });
+      } catch (error) {
+        toaster.toast({ title: t("common.error"), body: String(error) });
+      }
+    },
+    [removeShareLinkSession]
+  );
 
   // Create share with settings
   const handleStartShare = async () => {
@@ -118,12 +109,12 @@ export const SharedViaLinkPage: FC = () => {
         sharePin || undefined,
         autoAccept
       );
-      setShareLinkSession({
+      addShareLinkSession({
         sessionId,
         downloadUrl,
         createdAt: Date.now(),
       });
-      setPendingShare(null); // Clear pending after creating
+      setPendingShare(null);
       toaster.toast({ title: t("common.success"), body: "" });
     } catch (error) {
       toaster.toast({ title: t("common.error"), body: String(error) });
@@ -271,7 +262,7 @@ export const SharedViaLinkPage: FC = () => {
   }
 
   // No active share
-  if (!shareLinkSession) {
+  if (shareLinkSessions.length === 0) {
     return (
       <div style={scrollContainerStyle}>
         <PanelSection title={t("shareLink.title")}>
@@ -290,7 +281,7 @@ export const SharedViaLinkPage: FC = () => {
     );
   }
 
-  // Active share - show link, QR code, and controls
+  // Active share links list - show each session with link, QR, copy, end
   return (
     <div style={scrollContainerStyle}>
       <PanelSection title={t("shareLink.title")}>
@@ -299,13 +290,6 @@ export const SharedViaLinkPage: FC = () => {
             {t("shareLink.accessHint")}
           </div>
         </PanelSectionRow>
-        {shareLinkSession.downloadUrl.startsWith("https://") && (
-          <PanelSectionRow>
-            <div style={{ marginBottom: "8px", fontSize: "12px", color: "#f0b429" }}>
-              {t("shareLink.httpsCertHint")}
-            </div>
-          </PanelSectionRow>
-        )}
         <PanelSectionRow>
           <div style={{ marginBottom: "8px", fontSize: "12px", color: "#b8b6b4" }}>
             {t("shareLink.httpHint")}
@@ -316,78 +300,87 @@ export const SharedViaLinkPage: FC = () => {
             {t("shareLink.sameNetworkHint")}
           </div>
         </PanelSectionRow>
-        <PanelSectionRow>
-          <div style={{ marginBottom: "10px", fontSize: "12px", color: "#b8b6b4" }}>
-            {t("shareLink.description")}
-          </div>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <Field label={t("shareLink.Link")}>
-            {shareLinkSession.downloadUrl.replace(/\/\?.*$/, "").replace(/\/$/, "")}
-          </Field>
-        </PanelSectionRow>
-        {/* Session ID */}
-        <PanelSectionRow>
-          <Field label={t("shareLink.sessionId")}>
-            {shareLinkSession.sessionId}
-          </Field>
-        </PanelSectionRow>
+      </PanelSection>
 
-        {/* Expiry time */}
-        {remainingTime !== null && (
-          <PanelSectionRow>
-            <Field label={t("shareLink.expiresIn")}>
-              <span style={{ color: remainingTime < 5 * 60 * 1000 ? "#ff6b6b" : "#4ade80" }}>
-                {formatRemainingTime(remainingTime)}
-              </span>
-            </Field>
-          </PanelSectionRow>
-        )}
+      {shareLinkSessions.map((session) => {
+        const remaining = getRemaining(session);
+        const isHttps = session.downloadUrl.startsWith("https://");
+        return (
+          <PanelSection key={session.sessionId} title={`${t("shareLink.sessionId")}: ${session.sessionId.toLowerCase()}`}>
+            {isHttps && (
+              <PanelSectionRow>
+                <div style={{ marginBottom: "6px", fontSize: "11px", color: "#f0b429" }}>
+                  {t("shareLink.httpsCertHint")}
+                </div>
+              </PanelSectionRow>
+            )}
+            <PanelSectionRow>
+              <Field label={t("shareLink.Link")}>
+                {session.downloadUrl.replace(/\/\?.*$/, "").replace(/\/$/, "")}
+              </Field>
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <Field label={t("shareLink.sessionId")}>
+                {session.sessionId}
+              </Field>
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <Field label={t("shareLink.expiresIn")}>
+                <span style={{ color: remaining < 5 * 60 * 1000 ? "#ff6b6b" : "#4ade80" }}>
+                  {formatRemainingTime(remaining)}
+                </span>
+              </Field>
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <Focusable
+                style={{
+                  padding: "6px 8px",
+                  backgroundColor: "rgba(0,0,0,0.3)",
+                  borderRadius: "6px",
+                  fontSize: "10px",
+                  wordBreak: "break-all",
+                  marginBottom: "8px",
+                }}
+              >
+                {t("shareLink.orVisitDirect")}: {session.downloadUrl}
+              </Focusable>
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <div style={{ textAlign: "center", marginBottom: "8px" }}>
+                <div style={{ fontSize: "11px", marginBottom: "4px", color: "#b8b6b4" }}>
+                  {t("shareLink.qrCode")}
+                </div>
+                <img
+                  src={getQRCodeUrl(session.downloadUrl)}
+                  alt="QR Code"
+                  style={{
+                    width: "160px",
+                    height: "160px",
+                    backgroundColor: "#fff",
+                    borderRadius: "6px",
+                    padding: "6px",
+                  }}
+                />
+              </div>
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <ButtonItem layout="below" onClick={() => handleCopy(session)}>
+                {t("shareLink.copyLink")}
+              </ButtonItem>
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <ButtonItem layout="below" onClick={() => handleCloseSession(session)}>
+                {t("shareLink.closeShare")}
+              </ButtonItem>
+            </PanelSectionRow>
+          </PanelSection>
+        );
+      })}
 
-        {/* Download URL */}
+      <PanelSection>
         <PanelSectionRow>
-          <Focusable
-            style={{
-              padding: "8px 10px",
-              backgroundColor: "rgba(0,0,0,0.3)",
-              borderRadius: "6px",
-              fontSize: "11px",
-              wordBreak: "break-all",
-              marginBottom: "12px",
-            }}
-          >
-                {t('shareLink.orVisitDirect')}:   {shareLinkSession.downloadUrl}
-          </Focusable>
-        </PanelSectionRow>
-
-        {/* QR Code */}
-        <PanelSectionRow>
-          <div style={{ textAlign: "center", marginBottom: "12px" }}>
-            <div style={{ fontSize: "12px", marginBottom: "8px", color: "#b8b6b4" }}>
-              {t("shareLink.qrCode")}
-            </div>
-            <img
-              src={getQRCodeUrl(shareLinkSession.downloadUrl)}
-              alt="QR Code"
-              style={{
-                width: "200px",
-                height: "200px",
-                backgroundColor: "#fff",
-                borderRadius: "8px",
-                padding: "8px",
-              }}
-            />
-          </div>
-        </PanelSectionRow>
-
-        <PanelSectionRow>
-          <ButtonItem layout="below" onClick={handleCopy}>
-            {t("shareLink.copyLink")}
-          </ButtonItem>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ButtonItem layout="below" onClick={handleCloseSession}>
-            {t("shareLink.closeShare")}
+          <ButtonItem layout="below" onClick={() => Router.Navigate("/decky-localsend-config")}>
+            {t("shareLink.createFromMain")}
           </ButtonItem>
         </PanelSectionRow>
       </PanelSection>

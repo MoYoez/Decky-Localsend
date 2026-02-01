@@ -190,8 +190,8 @@ function Content() {
       setDevices([]);
       setSelectedDevice(null);
       setFavorites([]);
-      // Clear share link session when backend stops
-      setShareLinkSession(null);
+      // Clear all share link sessions when backend stops
+      clearShareLinkSessions();
     }
   }, [backend.running]);
 
@@ -493,7 +493,7 @@ function Content() {
     }
   };
 
-  const setShareLinkSession = useLocalSendStore((state) => state.setShareLinkSession);
+  const clearShareLinkSessions = useLocalSendStore((state) => state.clearShareLinkSessions);
   const setPendingShare = useLocalSendStore((state) => state.setPendingShare);
 
   // Handle create share link (Download API) -> navigate to Shared via Link page for settings
