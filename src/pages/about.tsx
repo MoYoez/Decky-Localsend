@@ -58,7 +58,7 @@ export const About: FC = () => {
         <span>{t("about.protocolDesc")}</span>
         <ButtonItem
           icon={<FiGithub style={{ display: "block" }} />}
-          label={t("about.protocolRepo")}
+          label={"localsend/protocol"}
           onClick={() => {
             Navigation.NavigateToExternalWeb(PROTOCOL_GITHUB_URL);
           }}
