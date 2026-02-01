@@ -43,7 +43,7 @@ import { createBackendHandlers } from "./functions/backendHandlers";
 import { createDeviceHandlers } from "./functions/deviceHandlers";
 import { createFileHandlers } from "./functions/fileHandlers";
 import { createUploadHandlers } from "./functions/uploadHandlers";
-import { createShareSession, confirmDownload } from "./functions/shareHandlers";
+import { confirmDownload } from "./functions/shareHandlers";
 import { proxyGet, proxyPost } from "./utils/proxyReq";
 import { LuSendToBack } from "react-icons/lu";
 
@@ -180,7 +180,7 @@ function Content() {
     setFavorites
   );
 
-  // Only clear device list and favorites when backend *transitions* from running to stopped.
+  // Only clear device list, favorites, and share link session when backend *transitions* from running to stopped.
   // Avoid clearing on initial mount (backend.running starts false) or when Content remounts (e.g. after closing favorite modal).
   const prevBackendRunningRef = useRef<boolean | null>(null);
   useEffect(() => {
@@ -190,6 +190,8 @@ function Content() {
       setDevices([]);
       setSelectedDevice(null);
       setFavorites([]);
+      // Clear share link session when backend stops
+      setShareLinkSession(null);
     }
   }, [backend.running]);
 
@@ -222,12 +224,10 @@ function Content() {
       });
       return;
     }
-    // Set selected device and trigger upload
+    // Set selected device for UI display and directly pass device to upload
     setSelectedDevice(onlineFav.device);
-    // Small delay to ensure state is updated before upload
-    setTimeout(() => {
-      handleUpload();
-    }, 100);
+    // Pass the device directly to handleUpload to avoid closure issues
+    handleUpload(onlineFav.device);
   };
 
   const openInputModal = (title: string, label: string) =>
@@ -494,9 +494,17 @@ function Content() {
   };
 
   const setShareLinkSession = useLocalSendStore((state) => state.setShareLinkSession);
+  const setPendingShare = useLocalSendStore((state) => state.setPendingShare);
 
-  // Handle create share link (Download API) -> navigate to Shared via Link page
-  const handleCreateShareLink = async () => {
+  // Handle create share link (Download API) -> navigate to Shared via Link page for settings
+  const handleCreateShareLink = () => {
+    if (!backend.running) {
+      toaster.toast({
+        title: t("common.error"),
+        body: t("shareLink.backendRequired"),
+      });
+      return;
+    }
     const shareableFiles = selectedFiles.filter(
       (f) =>
         f.textContent ||
@@ -510,17 +518,10 @@ function Content() {
       });
       return;
     }
-    try {
-      const { sessionId, downloadUrl } = await createShareSession(shareableFiles, undefined, true);
-      setShareLinkSession({ sessionId, downloadUrl });
-      Router.CloseSideMenus();
-      Router.Navigate("/decky-localsend-share-link");
-    } catch (error) {
-      toaster.toast({
-        title: t("common.error"),
-        body: String(error),
-      });
-    }
+    // Set pending share and navigate to settings page (no session created yet)
+    setPendingShare({ files: shareableFiles });
+    Router.CloseSideMenus();
+    Router.Navigate("/decky-localsend-share-link");
   };
 
   // Handle screenshot gallery (experimental)
@@ -656,7 +657,7 @@ function Content() {
         <PanelSectionRow>
           <ButtonItem
             layout="below"
-            onClick={handleUpload}
+            onClick={() => handleUpload()}
             disabled={uploading || !selectedDevice || selectedFiles.length === 0}
           >
             {uploading ? t("upload.uploading") : t("upload.confirmSend")}
@@ -676,7 +677,7 @@ function Content() {
             <ButtonItem
               layout="below"
               onClick={handleCreateShareLink}
-              disabled={uploading || selectedFiles.length === 0}
+              disabled={uploading || selectedFiles.length === 0 || !backend.running}
             >
               🔗 {t("upload.createShareLink")}
             </ButtonItem>
@@ -687,9 +688,17 @@ function Content() {
             <ButtonItem
               layout="below"
               onClick={() => {
+                if (!backend.running) {
+                  toaster.toast({
+                    title: t("common.error"),
+                    body: t("shareLink.backendRequired"),
+                  });
+                  return;
+                }
                 Router.CloseSideMenus();
                 Router.Navigate("/decky-localsend-share-link");
               }}
+              disabled={!backend.running}
             >
               🔗 {t("shareLink.title")}
             </ButtonItem>
@@ -793,7 +802,7 @@ function Content() {
         )}
       </PanelSection>
       <ReceiveHistoryPanel saveReceiveHistory={saveReceiveHistory} />
-      <PanelSection title={"Decky Localsend"}>
+      <PanelSection title={t("config.title")}>
         <PanelSectionRow>
           <ButtonItem
             layout="below"

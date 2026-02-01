@@ -12,6 +12,19 @@ interface FavoritesListResponse {
   data: FavoriteDevice[];
 }
 
+// Helper: fetch favorites from API (no backendRunning check, always fetches)
+const fetchFavoritesFromApi = async (): Promise<FavoriteDevice[]> => {
+  try {
+    const result = await proxyGet("/api/self/v1/favorites");
+    if (result.status !== 200) return [];
+    const body = result.data as FavoritesListResponse | undefined;
+    return Array.isArray(body?.data) ? body.data : [];
+  } catch (error) {
+    console.error("Failed to fetch favorites:", error);
+    return [];
+  }
+};
+
 export const createFavoritesHandlers = (
   backendRunning: boolean,
   setFavorites: (favorites: FavoriteDevice[]) => void
@@ -22,19 +35,13 @@ export const createFavoritesHandlers = (
     if (!backendRunning) {
       return;
     }
-    try {
-      const result = await proxyGet("/api/self/v1/favorites");
-      if (result.status !== 200) return;
-      const body = result.data as FavoritesListResponse | undefined;
-      const list = Array.isArray(body?.data) ? body.data : [];
-      setFavorites(list);
-    } catch (error) {
-      console.error("Failed to fetch favorites:", error);
-    }
+    const list = await fetchFavoritesFromApi();
+    setFavorites(list);
   };
 
   // Add device to favorites - POST /api/self/v1/favorites
   // Body: { fingerprint, alias }, backend returns FastReturnSuccess() => { status: "ok" }
+  // Uses optimistic update + re-fetch to avoid closure issues
   const handleAddToFavorites = async (fingerprint: string, alias: string) => {
     try {
       const result = await proxyPost("/api/self/v1/favorites", {
@@ -46,7 +53,9 @@ export const createFavoritesHandlers = (
           title: t("config.favoritesAdded"),
           body: alias || fingerprint,
         });
-        await fetchFavorites();
+        // Directly fetch from API to avoid closure issue with backendRunning
+        const list = await fetchFavoritesFromApi();
+        setFavorites(list);
       } else {
         const errMsg = (result.data as { error?: string })?.error ?? "Failed to add favorite";
         throw new Error(errMsg);
@@ -61,6 +70,7 @@ export const createFavoritesHandlers = (
 
   // Remove device from favorites - DELETE /api/self/v1/favorites/:fingerprint
   // Backend returns FastReturnSuccess() => { status: "ok" }
+  // Uses optimistic update + re-fetch to avoid closure issues
   const handleRemoveFromFavorites = async (fingerprint: string) => {
     try {
       const result = await proxyDelete(`/api/self/v1/favorites/${encodeURIComponent(fingerprint)}`);
@@ -69,7 +79,9 @@ export const createFavoritesHandlers = (
           title: t("config.favoritesRemoved"),
           body: "",
         });
-        await fetchFavorites();
+        // Directly fetch from API to avoid closure issue with backendRunning
+        const list = await fetchFavoritesFromApi();
+        setFavorites(list);
       } else {
         const errMsg = (result.data as { error?: string })?.error ?? "Failed to remove favorite";
         throw new Error(errMsg);

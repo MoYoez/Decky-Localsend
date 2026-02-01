@@ -12,8 +12,10 @@ export const createUploadHandlers = (
   setUploadProgress: React.Dispatch<React.SetStateAction<UploadProgress[]>>,
   clearFiles: () => void
 ) => {
-  const handleUpload = async () => {
-    if (!selectedDevice) {
+  // handleUpload now accepts an optional override device for quick send scenarios
+  const handleUpload = async (overrideDevice?: ScanDevice) => {
+    const targetDevice = overrideDevice || selectedDevice;
+    if (!targetDevice) {
       toaster.toast({
         title: "No device selected",
         body: "Please select a target device first",
@@ -81,7 +83,7 @@ export const createUploadHandlers = (
           return proxyPost(
             `/api/self/v1/prepare-upload${pinParam}`,
             {
-              targetTo: selectedDevice.fingerprint,
+              targetTo: targetDevice.fingerprint,
               useFolderUpload: true,
               folderPath: folderPath,
               ...(hasExtraFiles && { files: filesMap }),
@@ -93,7 +95,7 @@ export const createUploadHandlers = (
         return proxyPost(
           `/api/self/v1/prepare-upload${pinParam}`,
           {
-            targetTo: selectedDevice.fingerprint,
+            targetTo: targetDevice.fingerprint,
             files: filesMap,
           }
         );

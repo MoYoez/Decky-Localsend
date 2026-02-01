@@ -219,7 +219,9 @@ export const zhCN: TranslationKeys = {
 
   // Share Link Modal
   shareLink: {
-    title: "通过链接分享",
+    orVisitDirect:"或者直接访问",
+    title: "通过链接分享列表",
+    Link:"链接",
     description: "将链接分享给接收方，对方在浏览器中打开即可下载文件。",
     copyLink: "复制链接",
     copied: "链接已复制！",
@@ -228,6 +230,25 @@ export const zhCN: TranslationKeys = {
     selectFiles: "请选择文件、文件夹或添加文本来分享",
     noActiveShare: "暂无分享",
     createFromMain: "请在主页面选择文件后点击「创建分享链接」开始。",
+    // Create share settings
+    createShareSettings: "创建分享设置",
+    pinForShare: "分享 PIN 码",
+    pinForShareDesc: "需要 PIN 码才能访问分享的文件",
+    autoAccept: "自动接受",
+    autoAcceptDesc: "自动接受下载请求",
+    startShare: "开始分享",
+    cancelCreate: "取消",
+    enterPin: "输入 PIN 码",
+    sessionId: "会话 ID",
+    expiresIn: "过期时间",
+    minutes: "分钟",
+    expired: "已过期",
+    qrCode: "二维码",
+    backendRequired: "后端需要运行才能分享",
+    accessHint: "完整链接见下方，在浏览器中打开并输入 SessionID 即可访问。",
+    httpsCertHint: "使用 HTTPS 时，您可能需要在浏览器中信任证书。",
+    httpHint: "如果需要使用 HTTP，请在配置中关闭「使用加密」。",
+    sameNetworkHint: "请确保接收方与您在同一网络环境下访问。",
   },
 
   // Text Received Modal

@@ -24,6 +24,18 @@ type FileInfo = {
   fileCount?: number;
 };
 
+// Share link session with expiry tracking
+interface ShareLinkSessionWithExpiry {
+  sessionId: string;
+  downloadUrl: string;
+  createdAt: number; // timestamp
+}
+
+// Pending share files (files selected but not yet shared)
+interface PendingShare {
+  files: FileInfo[];
+}
+
 // Store state interface
 interface LocalSendStore {
   // Available devices state
@@ -42,8 +54,12 @@ interface LocalSendStore {
   clearFiles: () => void;
 
   // Share via link session (preserved when navigating to SharedViaLinkPage)
-  shareLinkSession: { sessionId: string; downloadUrl: string } | null;
-  setShareLinkSession: (session: { sessionId: string; downloadUrl: string } | null) => void;
+  shareLinkSession: ShareLinkSessionWithExpiry | null;
+  setShareLinkSession: (session: ShareLinkSessionWithExpiry | null) => void;
+
+  // Pending share (files to share, before creating session)
+  pendingShare: PendingShare | null;
+  setPendingShare: (pending: PendingShare | null) => void;
 
   // Favorites (preserved when modal closes / Content remounts so heart stays lit)
   favorites: FavoriteDevice[];
@@ -60,6 +76,7 @@ export const useLocalSendStore = create<LocalSendStore>((set) => ({
   selectedDevice: null,
   selectedFiles: [],
   shareLinkSession: null,
+  pendingShare: null,
   favorites: [],
 
   // Actions for devices
@@ -100,6 +117,8 @@ export const useLocalSendStore = create<LocalSendStore>((set) => ({
 
   setShareLinkSession: (session) => set({ shareLinkSession: session }),
 
+  setPendingShare: (pending) => set({ pendingShare: pending }),
+
   setFavorites: (favorites) => set({ favorites }),
 
   // Reset all state to initial values
@@ -108,6 +127,7 @@ export const useLocalSendStore = create<LocalSendStore>((set) => ({
     selectedDevice: null,
     selectedFiles: [],
     shareLinkSession: null,
+    pendingShare: null,
     favorites: [],
   }),
 }));

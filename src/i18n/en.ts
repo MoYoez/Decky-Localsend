@@ -216,7 +216,9 @@ export const en = {
 
   // Share Link Modal (create share session, show download URL)
   shareLink: {
-    title: "Share via Link",
+    orVisitDirect:"Or Visit Directly",
+    title: "Share via Link List",
+    Link:"Link",  
     description: "Share this link with the receiver. They can open it in a browser to download the files.",
     copyLink: "Copy Link",
     copied: "Link copied!",
@@ -225,6 +227,25 @@ export const en = {
     selectFiles: "Please select files, folders, or add text to share",
     noActiveShare: "No active share",
     createFromMain: "Select files on the main page and use \"Create Share Link\" to start.",
+    // Create share settings
+    createShareSettings: "Create Share Settings",
+    pinForShare: "PIN for Share",
+    pinForShareDesc: "Require PIN to access shared files",
+    autoAccept: "Auto Accept",
+    autoAcceptDesc: "Automatically accept download requests",
+    startShare: "Start Share",
+    cancelCreate: "Cancel",
+    enterPin: "Enter PIN",
+    sessionId: "Session ID",
+    expiresIn: "Expires in",
+    minutes: "minutes",
+    expired: "Expired",
+    qrCode: "QR Code",
+    backendRequired: "Backend must be running to share",
+    accessHint: "Full link below; open in browser and enter Session ID to access.",
+    httpsCertHint: "When using HTTPS, you may need to trust the certificate in your browser.",
+    httpHint: "To use HTTP, turn off \"Use HTTPS\" (encryption) in configuration.",
+    sameNetworkHint: "Ensure the receiver is on the same network as you.",
   },
 
   // Text Received Modal
