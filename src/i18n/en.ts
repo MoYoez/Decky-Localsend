@@ -259,6 +259,8 @@ export const en = {
     httpsCertHint: "When using HTTPS, you may need to trust the certificate in your browser.",
     httpHint: "To use HTTP, turn off \"Use HTTPS\" (encryption) in configuration.",
     sameNetworkHint: "Ensure the receiver is on the same network as you.",
+    filesInShare: "Files in this share",
+    backToList: "Back to list",
   },
 
   // Text Received Modal

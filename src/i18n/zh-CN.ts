@@ -262,6 +262,8 @@ export const zhCN: TranslationKeys = {
     httpsCertHint: "使用 HTTPS 时，您可能需要在浏览器中信任证书。",
     httpHint: "如果需要使用 HTTP，请在配置中关闭「使用加密」。",
     sameNetworkHint: "请确保接收方与您在同一网络环境下访问。",
+    filesInShare: "分享中的文件",
+    backToList: "返回列表",
   },
 
   // Text Received Modal

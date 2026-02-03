@@ -29,6 +29,7 @@ export interface ShareLinkSessionWithExpiry {
   sessionId: string;
   downloadUrl: string;
   createdAt: number; // timestamp
+  files?: FileInfo[]; // optional file list for display in detail view
 }
 
 // Pending share files (files selected but not yet shared)
