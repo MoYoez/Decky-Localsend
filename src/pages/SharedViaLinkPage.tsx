@@ -34,6 +34,7 @@ export const SharedViaLinkPage: FC = () => {
 
   // Backend status
   const [backendRunning, setBackendRunning] = useState(false);
+  const [backendUrl, setBackendUrl] = useState("");
 
   // Create share settings
   const [sharePin, setSharePin] = useState("");
@@ -67,8 +68,14 @@ export const SharedViaLinkPage: FC = () => {
   // Check backend status
   useEffect(() => {
     getBackendStatus()
-      .then((status) => setBackendRunning(status.running))
-      .catch(() => setBackendRunning(false));
+      .then((status) => {
+        setBackendRunning(status.running);
+        setBackendUrl(status.url ?? "");
+      })
+      .catch(() => {
+        setBackendRunning(false);
+        setBackendUrl("");
+      });
   }, []);
 
   const handleCopy = useCallback(async (session: ShareLinkSessionWithExpiry) => {
@@ -153,9 +160,12 @@ export const SharedViaLinkPage: FC = () => {
     return `${minutes}:${seconds.toString().padStart(2, "0")} ${t("shareLink.minutes")}`;
   };
 
-  // Generate QR code URL using external service
-  const getQRCodeUrl = (url: string): string => {
-    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+  // Generate QR code URL: use local backend /create-qr-code when available, else external
+  const getQRCodeUrl = (dataUrl: string): string => {
+    if (backendUrl) {
+      return `${backendUrl}/api/self/v1/create-qr-code?size=200x200&data=${encodeURIComponent(dataUrl)}`;
+    }
+    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(dataUrl)}`;
   };
 
   const scrollContainerStyle: CSSProperties = {

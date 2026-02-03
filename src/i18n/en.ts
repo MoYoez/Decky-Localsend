@@ -106,6 +106,8 @@ export const en = {
     notifyOnDownloadDesc: "Show notification when file download is complete",
     useDownload: "Use Download (Share via Link)",
     useDownloadDesc: "Enable Download API for share via link. Restart backend to take effect.",
+    doNotMakeSessionFolder: "Do Not Create Session Subfolder",
+    doNotMakeSessionFolderDesc: "When enabled, save files directly in download folder; same filename becomes name-2.ext, name-3.ext, …",
     saveReceiveHistory: "Save Receive History",
     saveReceiveHistoryDesc: "Save received file history for later viewing",
     disableInfoLogging: "Disable INFO Logging",

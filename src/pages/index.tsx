@@ -88,6 +88,7 @@ export const ConfigPage: FC = () => {
   const [saveReceiveHistory, setSaveReceiveHistory] = useState(true);
   const [enableExperimental, setEnableExperimental] = useState(false);
   const [useDownload, setUseDownload] = useState(false);
+  const [doNotMakeSessionFolder, setDoNotMakeSessionFolder] = useState(false);
   const [disableInfoLogging, setDisableInfoLogging] = useState(false);
   const [scanTimeout, setScanTimeout] = useState("500");
   const favorites = useLocalSendStore((state) => state.favorites);
@@ -144,6 +145,7 @@ export const ConfigPage: FC = () => {
         setSaveReceiveHistory(result.save_receive_history !== false);
         setEnableExperimental(!!result.enable_experimental);
         setUseDownload(!!result.use_download);
+        setDoNotMakeSessionFolder(!!result.do_not_make_session_folder);
         setDisableInfoLogging(!!result.disable_info_logging);
         setScanTimeout(String(result.scan_timeout ?? 500));
       })
@@ -195,6 +197,7 @@ export const ConfigPage: FC = () => {
         save_receive_history: updates.save_receive_history ?? saveReceiveHistory,
         enable_experimental: updates.enable_experimental ?? enableExperimental,
         use_download: updates.use_download ?? useDownload,
+        do_not_make_session_folder: updates.do_not_make_session_folder ?? doNotMakeSessionFolder,
         disable_info_logging: updates.disable_info_logging ?? disableInfoLogging,
         scan_timeout: updates.scan_timeout ?? (parseInt(scanTimeout) || 500),
       });
@@ -651,6 +654,17 @@ export const ConfigPage: FC = () => {
             onChange={(checked: boolean) => {
               setUseDownload(checked);
               saveConfig({ use_download: checked });
+            }}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ToggleField
+            label={t("config.doNotMakeSessionFolder")}
+            description={t("config.doNotMakeSessionFolderDesc")}
+            checked={doNotMakeSessionFolder}
+            onChange={(checked: boolean) => {
+              setDoNotMakeSessionFolder(checked);
+              saveConfig({ do_not_make_session_folder: checked });
             }}
           />
         </PanelSectionRow>

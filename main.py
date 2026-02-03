@@ -55,6 +55,7 @@ class Plugin:
         self.save_receive_history = True
         self.enable_experimental = False
         self.use_download = False  # Enable Download API (share via link)
+        self.do_not_make_session_folder = False
         self.disable_info_logging = False
         self.scan_timeout = 500  # scan timeout in seconds, default 500
         self.network_interface = "*"  # "*" means all interfaces
@@ -103,6 +104,7 @@ class Plugin:
             "save_receive_history": self.save_receive_history,
             "enable_experimental": self.enable_experimental,
             "use_download": self.use_download,
+            "do_not_make_session_folder": self.do_not_make_session_folder,
             "disable_info_logging": self.disable_info_logging,
             "download_folder": self.upload_dir,
             "scan_timeout": self.scan_timeout,
@@ -148,6 +150,7 @@ class Plugin:
             self.save_receive_history = bool(data.get("save_receive_history", self.save_receive_history))
             self.enable_experimental = bool(data.get("enable_experimental", False))
             self.use_download = bool(data.get("use_download", self.use_download))
+            self.do_not_make_session_folder = bool(data.get("do_not_make_session_folder", self.do_not_make_session_folder))
             self.disable_info_logging = bool(data.get("disable_info_logging", False))
             scan_timeout = data.get("scan_timeout", self.scan_timeout)
             try:
@@ -220,6 +223,7 @@ class Plugin:
             "save_receive_history": self.save_receive_history,
             "enable_experimental": self.enable_experimental,
             "use_download": self.use_download,
+            "do_not_make_session_folder": self.do_not_make_session_folder,
             "disable_info_logging": self.disable_info_logging,
             "download_folder": self.upload_dir,
             "scan_timeout": self.scan_timeout,
@@ -471,9 +475,11 @@ class Plugin:
             cmd.extend(["-scanTimeout", str(self.scan_timeout)])
         cmd.append(f"-useAutoSave={'true' if self.auto_save else 'false'}")
         cmd.append(f"-useAutoSaveFromFavorites={'true' if self.auto_save_from_favorites else 'false'}")
-        cmd.append(f"-useHttps={'true' if self.use_https else 'false'}")
+        cmd.append(f"-useHttp={'true' if not self.use_https else 'false'}")
         if self.use_download:
             cmd.append("-useDownload")
+        if self.do_not_make_session_folder:
+            cmd.append("-doNotMakeSessionFolder")
 
         self.process = subprocess.Popen(
             cmd,
@@ -649,6 +655,7 @@ class Plugin:
             "save_receive_history": self.save_receive_history,
             "enable_experimental": self.enable_experimental,
             "use_download": self.use_download,
+            "do_not_make_session_folder": self.do_not_make_session_folder,
             "disable_info_logging": self.disable_info_logging,
             "scan_timeout": self.scan_timeout,
         }
@@ -670,6 +677,7 @@ class Plugin:
         save_receive_history = bool(config.get("save_receive_history", True))
         enable_experimental = bool(config.get("enable_experimental", False))
         use_download = bool(config.get("use_download", False))
+        do_not_make_session_folder = bool(config.get("do_not_make_session_folder", False))
         disable_info_logging = bool(config.get("disable_info_logging", False))
         scan_timeout_raw = config.get("scan_timeout", 500)
         try:
@@ -699,6 +707,7 @@ class Plugin:
         self.save_receive_history = save_receive_history
         self.enable_experimental = enable_experimental
         self.use_download = use_download
+        self.do_not_make_session_folder = do_not_make_session_folder
         self.disable_info_logging = disable_info_logging
         self.scan_timeout = scan_timeout
 

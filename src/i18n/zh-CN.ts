@@ -109,6 +109,8 @@ export const zhCN: TranslationKeys = {
     notifyOnDownloadDesc: "文件下载完成后显示通知",
     useDownload: "启用下载（通过链接分享）",
     useDownloadDesc: "启用通过链接分享的下载 API。需重启后端生效。",
+    doNotMakeSessionFolder: "不创建会话子文件夹",
+    doNotMakeSessionFolderDesc: "启用后，文件直接保存到下载目录；同名文件会保存为 name-2.ext、name-3.ext 等。",
     saveReceiveHistory: "保存接收历史",
     saveReceiveHistoryDesc: "保存接收的文件历史记录以便后续查看",
     disableInfoLogging: "禁用 INFO 日志",
