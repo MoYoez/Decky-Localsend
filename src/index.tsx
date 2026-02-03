@@ -971,14 +971,21 @@ export default definePlugin(() => {
   });
 
   // Listen for text received events from backend
-  const TextReceivedListener = addEventListener("text_received", (event: { title: string; content: string; fileName: string }) => {
+  const TextReceivedListener = addEventListener("text_received", (event: { title: string; content: string; fileName: string; sessionId?: string }) => {
+    const sessionId = String(event.sessionId ?? "");
     const modalResult = showModal(
       <TextReceivedModal
         title={event.title}
         content={event.content}
         fileName={event.fileName}
         onClose={() => {}}
-        closeModal={() => modalResult.Close()}
+        closeModal={() => {
+          if (sessionId) {
+            proxyGet(`/api/self/v1/text-received-dismiss?sessionId=${encodeURIComponent(sessionId)}`).finally(() => modalResult.Close());
+          } else {
+            modalResult.Close();
+          }
+        }}
       />
     );
   });

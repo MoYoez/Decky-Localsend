@@ -293,12 +293,13 @@ class Plugin:
                 decky.logger.debug(f"Device notification: {notification_type} - {title}: {message}")
                 return
 
-            # text_received: single text/plain with preview, receiver returned 204 — no upload session
+            # text_received: single text/plain with preview, receiver returns 204 after user dismisses
             if notification_type == 'text_received':
                 from_alias = notification_data.get('from', '')
                 content = notification_data.get('content', '') or message
                 file_name = notification_data.get('fileName', 'clipboard.txt')
                 display_title = notification_data.get('title') or title or 'Text Received'
+                session_id = notification_data.get('sessionId', '') or ''
                 self._add_receive_history(
                     folder_path='',
                     files=[file_name],
@@ -310,7 +311,8 @@ class Plugin:
                     decky.emit("text_received", {
                         "title": display_title,
                         "content": content,
-                        "fileName": file_name
+                        "fileName": file_name,
+                        "sessionId": session_id,
                     }),
                     self.loop
                 )
