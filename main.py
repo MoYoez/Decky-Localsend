@@ -345,6 +345,7 @@ class Plugin:
                 failed_files = notification_data.get('failedFiles') or 0
                 failed_file_ids = notification_data.get('failedFileIds') or []
                 save_paths = notification_data.get('savePaths') or {}
+                saved_file_names = notification_data.get('savedFileNames') or []
                 do_not_make_session_folder = notification_data.get('doNotMakeSessionFolder', False)
                 upload_folder = notification_data.get('uploadFolder') or self.upload_dir
                 if save_paths:
@@ -352,8 +353,20 @@ class Plugin:
                     folder_path = os.path.dirname(first_path)
                 else:
                     folder_path = upload_folder if do_not_make_session_folder else os.path.join(upload_folder, session_id)
-                if save_paths:
+                if saved_file_names:
+                    files_in_folder = list(saved_file_names)
+                elif save_paths:
                     files_in_folder = [os.path.basename(p) for p in save_paths.values()]
+                elif do_not_make_session_folder and folder_path == upload_folder:
+                    # Avoid listing entire upload folder; use session file list for this session only
+                    if session_id in self.upload_sessions:
+                        files_in_folder = [
+                            self.upload_sessions[session_id][fid]['file_name']
+                            for fid in self.upload_sessions[session_id]
+                            if fid != '_meta' and fid not in failed_file_ids
+                        ]
+                    else:
+                        files_in_folder = []
                 else:
                     files_in_folder = os.listdir(folder_path) if os.path.isdir(folder_path) else []
 

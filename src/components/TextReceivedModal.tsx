@@ -76,7 +76,7 @@ export const TextReceivedModal = ({
               color: '#b8b6b4', 
               fontSize: '12px' 
             }}>
-              {content.length} characters
+              {t("textReceived.charactersCount").replace("{count}", String(content.length))}
             </div>
           </div>
 

@@ -46,6 +46,16 @@ export const en = {
     folderFiles: "files",
     manualSend: "Manual Send",
     createShareLink: "Create Share Link",
+    noDeviceSelectedTitle: "No device selected",
+    noDeviceSelectedMessage: "Please select a target device first",
+    noFilesSelectedTitle: "No files selected",
+    noFilesSelectedMessage: "Please select files to upload",
+    pinRequiredToContinue: "PIN required to continue",
+    failedTitle: "Upload failed",
+    uploadCompletedTitle: "Upload complete",
+    uploadCompletedBody: "Successfully uploaded {count} {files}",
+    partialCompletedTitle: "Partial upload complete",
+    partialCompletedBody: "Success: {success}, Failed: {failed}",
   },
 
   // Configuration Section
@@ -268,6 +278,22 @@ export const en = {
     copyToClipboard: "Copy to Clipboard",
     copied: "Copied!",
     close: "Close",
+    charactersCount: "{count} characters",
+  },
+  text: {
+    sendNoDeviceTitle: "No device selected",
+    sendNoDeviceMessage: "Please select a target device first",
+    emptyTextTitle: "Empty text",
+    emptyTextMessage: "Please enter text to send",
+    sendSuccessTitle: "Text sent",
+    sendSuccessBody: "Successfully sent text message to {device}",
+    sendFailedTitle: "Failed to send text",
+    defaultFileName: "message.txt",
+  },
+
+  devices: {
+    unknownAlias: "Unknown Device",
+    unknownModel: "unknown",
   },
 
   // File Received Modal

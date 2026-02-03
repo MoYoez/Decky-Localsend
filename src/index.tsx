@@ -378,7 +378,7 @@ function Content() {
           } else {
             progress = progress.map((p) => 
               p.fileId === textFile.id 
-                ? { ...p, status: 'error', error: uploadResult.data?.error || 'Upload failed' }
+                ? { ...p, status: 'error', error: uploadResult.data?.error || t("upload.failedTitle") }
                 : p
             );
           }
@@ -439,7 +439,7 @@ function Content() {
               if (uploadResult?.success) {
                 return { ...p, status: 'done' };
               } else if (uploadResult && !uploadResult.success) {
-                return { ...p, status: 'error', error: uploadResult?.error || 'Upload failed' };
+                return { ...p, status: 'error', error: uploadResult?.error || t("upload.failedTitle") };
               }
               return p;
             });
@@ -454,7 +454,7 @@ function Content() {
         } else {
           progress = progress.map((p) => {
             if (folderItems.some((f) => f.id === p.fileId) || regularFiles.some((f) => f.id === p.fileId)) {
-              return { ...p, status: 'error', error: batchUploadResult.data?.error || 'Upload failed' };
+              return { ...p, status: 'error', error: batchUploadResult.data?.error || t("upload.failedTitle") };
             }
             return p;
           });
@@ -476,13 +476,15 @@ function Content() {
         const successCount = progress.filter((p) => p.status === 'done').length;
         const failedCount = progress.filter((p) => p.status === 'error').length;
         toaster.toast({
-          title: t("common.success") + "/" + t("common.failed"),
-          body: `${successCount}/${failedCount}`,
+          title: t("upload.partialCompletedTitle"),
+          body: t("upload.partialCompletedBody")
+            .replace("{success}", String(successCount))
+            .replace("{failed}", String(failedCount)),
         });
       }
     } catch (error) {
       toaster.toast({
-        title: t("common.error"),
+        title: t("upload.failedTitle"),
         body: String(error),
       });
       setUploadProgress((prev) =>

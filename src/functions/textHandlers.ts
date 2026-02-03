@@ -1,4 +1,5 @@
 import { toaster } from "@decky/api";
+import { t } from "../i18n";
 import { proxyPost } from "../utils/proxyReq";
 import type { ScanDevice } from "../types/devices";
 
@@ -12,16 +13,16 @@ export const createTextHandlers = (
   const handleSendText = async (text: string) => {
     if (!selectedDevice) {
       toaster.toast({
-        title: "No device selected",
-        body: "Please select a target device first",
+        title: t("text.sendNoDeviceTitle"),
+        body: t("text.sendNoDeviceMessage"),
       });
       return;
     }
 
     if (!text || text.trim() === "") {
       toaster.toast({
-        title: "Empty text",
-        body: "Please enter text to send",
+        title: t("text.emptyTextTitle"),
+        body: t("text.emptyTextMessage"),
       });
       return;
     }
@@ -34,7 +35,7 @@ export const createTextHandlers = (
       const filesMap: Record<string, { id: string; fileName: string; size: number; fileType: string }> = {
         [textFileId]: {
           id: textFileId,
-          fileName: "message.txt",
+          fileName: t("text.defaultFileName"),
           size: new Blob([text]).size,
           fileType: "text/plain",
         },
@@ -67,15 +68,15 @@ export const createTextHandlers = (
 
       if (uploadResult.status === 200) {
         toaster.toast({
-          title: "Text sent",
-          body: `Successfully sent text message to ${selectedDevice.alias}`,
+          title: t("text.sendSuccessTitle"),
+          body: t("text.sendSuccessBody").replace("{device}", selectedDevice.alias || selectedDevice.fingerprint),
         });
       } else {
-        throw new Error(uploadResult.data?.error || `Upload failed: ${uploadResult.status}`);
+        throw new Error(uploadResult.data?.error || `${t("upload.failedTitle")}: ${uploadResult.status}`);
       }
     } catch (error) {
       toaster.toast({
-        title: "Failed to send text",
+        title: t("text.sendFailedTitle"),
         body: String(error),
       });
     } finally {

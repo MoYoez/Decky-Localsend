@@ -1,4 +1,5 @@
 import { toaster } from "@decky/api";
+import { t } from "../i18n";
 import { proxyPost } from "../utils/proxyReq";
 import { requestPin } from "../utils/requestPin";
 import type { FileInfo } from "../types/file";
@@ -17,16 +18,16 @@ export const createUploadHandlers = (
     const targetDevice = overrideDevice || selectedDevice;
     if (!targetDevice) {
       toaster.toast({
-        title: "No device selected",
-        body: "Please select a target device first",
+        title: t("upload.noDeviceSelectedTitle"),
+        body: t("upload.noDeviceSelectedMessage"),
       });
       return;
     }
 
     if (selectedFiles.length === 0) {
       toaster.toast({
-        title: "No files selected",
-        body: "Please select files to upload",
+        title: t("upload.noFilesSelectedTitle"),
+        body: t("upload.noFilesSelectedMessage"),
       });
       return;
     }
@@ -36,7 +37,7 @@ export const createUploadHandlers = (
     // Build progress display (folders show as single items)
     let progress: UploadProgress[] = selectedFiles.map((f) => ({
       fileId: f.id,
-      fileName: f.isFolder ? `📁 ${f.fileName} (${f.fileCount} files)` : f.fileName,
+      fileName: f.isFolder ? `📁 ${f.fileName} (${f.fileCount} ${t("upload.folderFiles")})` : f.fileName,
       status: 'pending',
     }));
     setUploadProgress(progress);
@@ -63,7 +64,7 @@ export const createUploadHandlers = (
         const textBytes = new TextEncoder().encode(f.textContent || "");
         filesMap[f.id] = {
           id: f.id,
-          fileName: f.fileName,
+          fileName: f.fileName ?? t("text.defaultFileName"),
           size: textBytes.length,
           fileType: "text/plain",
         };
@@ -103,9 +104,9 @@ export const createUploadHandlers = (
 
       let prepareResult = await prepareUpload();
       if (prepareResult.status === 401) {
-        const pin = await requestPin("PIN Required");
+        const pin = await requestPin(t("toast.pinRequired"));
         if (!pin) {
-          throw new Error("PIN required to continue");
+          throw new Error(t("upload.pinRequiredToContinue"));
         }
         prepareResult = await prepareUpload(pin);
       }
@@ -130,19 +131,19 @@ export const createUploadHandlers = (
           );
 
           if (uploadResult.status === 200) {
-            progress = progress.map((p) => 
+            progress = progress.map((p) =>
               p.fileId === textFile.id ? { ...p, status: 'done' } : p
             );
           } else {
-            progress = progress.map((p) => 
-              p.fileId === textFile.id 
-                ? { ...p, status: 'error', error: uploadResult.data?.error || 'Upload failed' }
+            progress = progress.map((p) =>
+              p.fileId === textFile.id
+                ? { ...p, status: 'error', error: uploadResult.data?.error || t("upload.failedTitle") }
                 : p
             );
           }
         } catch (error) {
-          progress = progress.map((p) => 
-            p.fileId === textFile.id 
+          progress = progress.map((p) =>
+            p.fileId === textFile.id
               ? { ...p, status: 'error', error: String(error) }
               : p
           );
@@ -207,7 +208,7 @@ export const createUploadHandlers = (
               if (uploadResult?.success) {
                 return { ...p, status: 'done' };
               } else if (uploadResult && !uploadResult.success) {
-                return { ...p, status: 'error', error: uploadResult?.error || 'Upload failed' };
+                return { ...p, status: 'error', error: uploadResult?.error || t("upload.failedTitle") };
               }
               return p;
             });
@@ -229,7 +230,7 @@ export const createUploadHandlers = (
               if (uploadResult?.success) {
                 return { ...p, status: 'done' };
               } else if (uploadResult) {
-                return { ...p, status: 'error', error: uploadResult?.error || 'Upload failed' };
+                return { ...p, status: 'error', error: uploadResult?.error || t("upload.failedTitle") };
               }
               // For folder items without direct result match
               if (folderItems.some((f) => f.id === p.fileId)) {
@@ -245,7 +246,7 @@ export const createUploadHandlers = (
           // All failed
           progress = progress.map((p) => {
             if (folderItems.some((f) => f.id === p.fileId) || regularFiles.some((f) => f.id === p.fileId)) {
-              return { ...p, status: 'error', error: batchUploadResult.data?.error || 'Upload failed' };
+              return { ...p, status: 'error', error: batchUploadResult.data?.error || t("upload.failedTitle") };
             }
             return p;
           });
@@ -260,8 +261,10 @@ export const createUploadHandlers = (
 
       if (allDone) {
         toaster.toast({
-          title: "Upload complete",
-          body: `Successfully uploaded ${selectedFiles.length} item(s)`,
+          title: t("upload.uploadCompletedTitle"),
+          body: t("upload.uploadCompletedBody")
+            .replace("{count}", String(selectedFiles.length))
+            .replace("{files}", t("common.files")),
         });
         // Clear files after successful upload
         clearFiles();
@@ -269,13 +272,15 @@ export const createUploadHandlers = (
         const successCount = progress.filter((p) => p.status === 'done').length;
         const failedCount = progress.filter((p) => p.status === 'error').length;
         toaster.toast({
-          title: "Partial upload complete",
-          body: `Success: ${successCount}, Failed: ${failedCount}`,
+          title: t("upload.partialCompletedTitle"),
+          body: t("upload.partialCompletedBody")
+            .replace("{success}", String(successCount))
+            .replace("{failed}", String(failedCount)),
         });
       }
     } catch (error) {
       toaster.toast({
-        title: "Upload failed",
+        title: t("upload.failedTitle"),
         body: String(error),
       });
       setUploadProgress((prev) =>
