@@ -1,7 +1,8 @@
 <div align="center">
 
 
-# Decky Localsend ![visitors](https://visitor-badge.laobi.icu/badge?page_id=moyoez/Decky-localsend)
+
+# Decky Localsend ![visitors](https://visitor-badge.laobi.icu/badge?page_id=moyoez/Decky-localsend) ![Release](https://img.shields.io/github/v/release/moyoez/decky-localsend) 
 
 <p>
   <img src="https://forthebadge.com/api/badges/generate?panels=2&primaryLabel=Build+With&secondaryLabel=+Go&primaryBGColor=%23f79102&primaryTextColor=%23ffffff&secondaryBGColor=%23389AD5&secondaryTextColor=%23ffffff&primaryFontSize=12&primaryFontWeight=600&primaryLetterSpacing=2&primaryFontFamily=Roboto&primaryTextTransform=uppercase&secondaryFontSize=12&secondaryFontWeight=900&secondaryLetterSpacing=2&secondaryFontFamily=Montserrat&secondaryTextTransform=uppercase&borderRadius=9" alt="Build With Go" style="vertical-align:middle;"/>
@@ -20,13 +21,6 @@
 </div>
 
 ---
-
-这是一个 Decky Loader 插件，可以在 Steam Deck 的游戏模式下启用 LocalSend 功能。
-
-该插件实现了 [LocalSend 协议](https://github.com/localsend/protocol) v2.1，实现了跨平台的无缝文件共享。
-
-
-> 其实这插件是因为终末地截个图发设备实在太麻烦才临时搓出来的（小声） 实际上我拿 deck 玩的最多的是 hd2( 
 
 ## 特点
 

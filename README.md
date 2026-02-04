@@ -1,7 +1,7 @@
 <div align="center">
 
 
-# Decky Localsend ![visitors](https://visitor-badge.laobi.icu/badge?page_id=moyoez/Decky-localsend)
+# Decky Localsend ![visitors](https://visitor-badge.laobi.icu/badge?page_id=moyoez/Decky-localsend) ![Release](https://img.shields.io/github/v/release/moyoez/decky-localsend) 
 
 <p>
   <img src="https://forthebadge.com/api/badges/generate?panels=2&primaryLabel=Build+With&secondaryLabel=+Go&primaryBGColor=%23f79102&primaryTextColor=%23ffffff&secondaryBGColor=%23389AD5&secondaryTextColor=%23ffffff&primaryFontSize=12&primaryFontWeight=600&primaryLetterSpacing=2&primaryFontFamily=Roboto&primaryTextTransform=uppercase&secondaryFontSize=12&secondaryFontWeight=900&secondaryLetterSpacing=2&secondaryFontFamily=Montserrat&secondaryTextTransform=uppercase&borderRadius=9" alt="Build With Go" style="vertical-align:middle;"/>
@@ -20,11 +20,6 @@ A Decky Loader plugin that brings LocalSend functionality to Steam Deck gaming m
 
 ---
 
-## Overview
-
-This is a Decky Loader plugin that enables LocalSend functionality on Steam Deck in gaming mode. It allows you to easily transfer files, screenshots, and text between your devices and Steam Deck without the hassle of setting up servers or typing IP addresses manually.
-
-The plugin implements the [LocalSend Protocol](https://github.com/localsend/protocol) v2.1, providing seamless cross-platform file sharing.
 
 ## Features
 
@@ -33,7 +28,7 @@ The plugin implements the [LocalSend Protocol](https://github.com/localsend/prot
 - Upload and browse screenshots
 - Some unique LocalSend features (e.g., accepting previous transfer list,  PINs, handling HTTP/HTTPS in certain environments)
 
-## Reference Usage
+## Reference Usage Scenarios
 
 - Transfer some images with GridDB
 - Use as a fast file transfer tool outdoors in certain scenarios (since the Deck is often used on the go)
