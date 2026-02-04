@@ -303,6 +303,7 @@ export const en = {
     folderPath: "Folder Path",
     fileCount: "File Count",
     files: "Files",
+    andMoreFiles: "and {count} more files",
     copyPath: "Copy Path",
     pathCopied: "Path Copied!",
     close: "Close",

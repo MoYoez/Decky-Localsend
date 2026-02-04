@@ -306,6 +306,7 @@ export const zhCN: TranslationKeys = {
     folderPath: "文件夹路径",
     fileCount: "文件数量",
     files: "文件列表",
+    andMoreFiles: "等 {count} 个文件",
     copyPath: "复制路径",
     pathCopied: "路径已复制！",
     close: "关闭",

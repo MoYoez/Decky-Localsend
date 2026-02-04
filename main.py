@@ -464,7 +464,7 @@ class Plugin:
                                     "folderPath": folder_path,
                                     "fileCount": len(files_in_folder),
                                     "files": files_in_folder,
-                                    "totalFiles": total_files,
+                                    "totalFiles": total_files,  # may be > len(files) when truncated
                                     "successFiles": success_files,
                                     "failedFiles": failed_files,
                                     "failedFileIds": failed_file_ids

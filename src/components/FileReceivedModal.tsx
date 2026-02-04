@@ -146,6 +146,11 @@ export const FileReceivedModal = ({
                     • {file}
                   </div>
                 ))}
+                {totalFiles != null && totalFiles > files.length && (
+                  <div style={{ marginTop: '6px', color: '#8a8a8a', fontSize: '12px' }}>
+                    {t("fileReceived.andMoreFiles").replace("{count}", String(totalFiles - files.length))}
+                  </div>
+                )}
               </div>
             </div>
           )}
