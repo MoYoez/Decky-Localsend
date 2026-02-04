@@ -46,6 +46,16 @@ export const en = {
     folderFiles: "files",
     manualSend: "Manual Send",
     createShareLink: "Create Share Link",
+    noDeviceSelectedTitle: "No device selected",
+    noDeviceSelectedMessage: "Please select a target device first",
+    noFilesSelectedTitle: "No files selected",
+    noFilesSelectedMessage: "Please select files to upload",
+    pinRequiredToContinue: "PIN required to continue",
+    failedTitle: "Upload failed",
+    uploadCompletedTitle: "Upload complete",
+    uploadCompletedBody: "Successfully uploaded {count} {files}",
+    partialCompletedTitle: "Partial upload complete",
+    partialCompletedBody: "Success: {success}, Failed: {failed}",
   },
 
   // Configuration Section
@@ -67,12 +77,12 @@ export const en = {
     multicastPort: "Multicast Port",
     editMulticastPort: "Edit Multicast Port",
     scanMode: "Scan Mode",
-    scanModeDesc: "Mixed: UDP + HTTP | Normal: UDP multicast | HTTP: Legacy scan",
+    scanModeDesc: "Mixed: UDP + HTTP | Normal: UDP multicast | Legacy: HTTP scan",
     scanModeMixed: "Mixed",
     scanModeNormal: "Normal",
     scanModeHTTP: "HTTP",
     skipNotify: "Skip Notify",
-    skipNotifyDesc: "Skip notification when receiving files",
+    skipNotifyDesc: "Skip notification when receiving files. Note: This feature will affect the history record saving!",
     pin: "PIN",
     pinConfigured: "Configured",
     pinNotSet: "Not set",
@@ -106,10 +116,12 @@ export const en = {
     notifyOnDownloadDesc: "Show notification when file download is complete",
     useDownload: "Use Download (Share via Link)",
     useDownloadDesc: "Enable Download API for share via link. Restart backend to take effect.",
+    doNotMakeSessionFolder: "Do Not Create Session Subfolder",
+    doNotMakeSessionFolderDesc: "When enabled, save files directly in download folder; same filename becomes name-2.ext, name-3.ext, …",
     saveReceiveHistory: "Save Receive History",
     saveReceiveHistoryDesc: "Save received file history for later viewing",
     disableInfoLogging: "Disable INFO Logging",
-    disableInfoLoggingDesc: "Disable backend INFO level logging, only show error logs",
+    disableInfoLoggingDesc: "Disable backend INFO level logging, prevent log output from occupying too much space",
     scanTimeout: "Scan Timeout",
     scanTimeoutDesc: "Auto scan timeout in seconds. Set to 0 to disable timeout",
     editScanTimeout: "Edit Scan Timeout",
@@ -191,6 +203,8 @@ export const en = {
 
   // Toasts
   toast: {
+    backendNotRunning: "Backend not running",
+    backendNotRunningBody: "Please start the LocalSend backend first",
     failedGetBackendStatus: "Failed to get backend status",
     failedLoadConfig: "Failed to load config",
     failedSelectFolder: "Failed to select folder",
@@ -257,6 +271,8 @@ export const en = {
     httpsCertHint: "When using HTTPS, you may need to trust the certificate in your browser.",
     httpHint: "To use HTTP, turn off \"Use HTTPS\" (encryption) in configuration.",
     sameNetworkHint: "Ensure the receiver is on the same network as you.",
+    filesInShare: "Files in this share",
+    backToList: "Back to list",
   },
 
   // Text Received Modal
@@ -264,6 +280,22 @@ export const en = {
     copyToClipboard: "Copy to Clipboard",
     copied: "Copied!",
     close: "Close",
+    charactersCount: "{count} characters",
+  },
+  text: {
+    sendNoDeviceTitle: "No device selected",
+    sendNoDeviceMessage: "Please select a target device first",
+    emptyTextTitle: "Empty text",
+    emptyTextMessage: "Please enter text to send",
+    sendSuccessTitle: "Text sent",
+    sendSuccessBody: "Successfully sent text message to {device}",
+    sendFailedTitle: "Failed to send text",
+    defaultFileName: "message.txt",
+  },
+
+  devices: {
+    unknownAlias: "Unknown Device",
+    unknownModel: "unknown",
   },
 
   // File Received Modal
@@ -271,6 +303,7 @@ export const en = {
     folderPath: "Folder Path",
     fileCount: "File Count",
     files: "Files",
+    andMoreFiles: "and {count} more files",
     copyPath: "Copy Path",
     pathCopied: "Path Copied!",
     close: "Close",
@@ -304,7 +337,7 @@ export const en = {
     title: "Steam Screenshots",
     openGallery: "Browse Screenshots",
     experimental: "Experimental Feature",
-    warning: "This feature will show screenshot gallery, which may scan your steam screenshots directory",
+    warning: "This feature will scan screenshot files in ~/.local/share/Steam/userdata/ directory. This is an experimental feature. Do you want to continue?",
     warningDetails: "This feature will scan screenshot files in ~/.local/share/Steam/userdata/ directory. This is an experimental feature. Do you want to continue?",
     understand: "I Understand",
     gallery: "Screenshot Gallery",

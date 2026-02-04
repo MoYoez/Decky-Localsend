@@ -15,6 +15,7 @@ import { closeShareSession, createShareSession } from "../functions/shareHandler
 import { copyToClipboard } from "../utils/copyClipBoard";
 import { getBackendStatus } from "../functions";
 import { BasicInputBoxModal } from "../components/basicInputBoxModal";
+import { proxyGet } from "../utils/proxyReq";
 import { t } from "../i18n";
 
 // One hour in milliseconds
@@ -39,6 +40,22 @@ export const SharedViaLinkPage: FC = () => {
   const [sharePin, setSharePin] = useState("");
   const [autoAccept, setAutoAccept] = useState(true);
   const [creating, setCreating] = useState(false);
+
+  // QR code images loaded via proxyGet (sessionId -> data URL)
+  const [qrCodeUrls, setQrCodeUrls] = useState<Record<string, string>>({});
+
+  // Selected session for detail view; null = list view
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+
+  // Clear selection when the selected session is removed (e.g. closed)
+  useEffect(() => {
+    if (
+      selectedSessionId &&
+      !shareLinkSessions.some((s) => s.sessionId === selectedSessionId)
+    ) {
+      setSelectedSessionId(null);
+    }
+  }, [selectedSessionId, shareLinkSessions]);
 
   // Tick every second to update remaining times and auto-remove expired sessions
   const [, setTick] = useState(0);
@@ -67,8 +84,12 @@ export const SharedViaLinkPage: FC = () => {
   // Check backend status
   useEffect(() => {
     getBackendStatus()
-      .then((status) => setBackendRunning(status.running))
-      .catch(() => setBackendRunning(false));
+      .then((status) => {
+        setBackendRunning(status.running);
+      })
+      .catch(() => {
+        setBackendRunning(false);
+      });
   }, []);
 
   const handleCopy = useCallback(async (session: ShareLinkSessionWithExpiry) => {
@@ -113,6 +134,7 @@ export const SharedViaLinkPage: FC = () => {
         sessionId,
         downloadUrl,
         createdAt: Date.now(),
+        files: pendingShare.files,
       });
       setPendingShare(null);
       toaster.toast({ title: t("common.success"), body: "" });
@@ -153,22 +175,53 @@ export const SharedViaLinkPage: FC = () => {
     return `${minutes}:${seconds.toString().padStart(2, "0")} ${t("shareLink.minutes")}`;
   };
 
-  // Generate QR code URL using external service
-  const getQRCodeUrl = (url: string): string => {
-    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
-  };
+  // Load QR code via proxyGet for each session
+  useEffect(() => {
+    if (!backendRunning || shareLinkSessions.length === 0) return;
 
-  const scrollContainerStyle: CSSProperties = {
-    padding: "16px",
-    overflowY: "auto",
+    const loadQrCodes = async () => {
+      const next: Record<string, string> = {};
+      for (const session of shareLinkSessions) {
+        if (qrCodeUrls[session.sessionId]) continue;
+        try {
+          const path = `/api/self/v1/create-qr-code?size=200x200&data=${encodeURIComponent(session.downloadUrl)}`;
+          const result = await proxyGet(path);
+          if (result?.status === 200 && result?.data) {
+            next[session.sessionId] = `data:image/png;base64,${result.data}`;
+          }
+        } catch {
+          // ignore
+        }
+      }
+      if (Object.keys(next).length > 0) {
+        setQrCodeUrls((prev) => ({ ...prev, ...next }));
+      }
+    };
+
+    loadQrCodes();
+  }, [backendRunning, shareLinkSessions, qrCodeUrls]);
+
+  // Scrollable page container: standalone route has no SidebarNavigation, so we need our own scroll root.
+  const scrollRootStyle: CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    flex: 1,
+    minHeight: 0,
     height: "100%",
+  };
+  const scrollContentStyle: CSSProperties = {
+    flex: 1,
+    minHeight: 0,
+    overflowY: "auto",
+    padding: "40px 16px",
     boxSizing: "border-box",
   };
 
   // Backend not running warning
   if (!backendRunning) {
     return (
-      <div style={scrollContainerStyle}>
+      <div style={scrollRootStyle}>
+      <div style={scrollContentStyle}>
         <PanelSection title={t("shareLink.title")}>
           <PanelSectionRow>
             <Field label={t("shareLink.backendRequired")}>
@@ -182,13 +235,15 @@ export const SharedViaLinkPage: FC = () => {
           </PanelSectionRow>
         </PanelSection>
       </div>
+      </div>
     );
   }
 
   // Pending share - show create settings page
   if (pendingShare && pendingShare.files.length > 0) {
     return (
-      <div style={scrollContainerStyle}>
+      <div style={scrollRootStyle}>
+      <div style={scrollContentStyle}>
         <PanelSection title={t("shareLink.createShareSettings")}>
           <PanelSectionRow>
             <Field label={t("upload.selectedFiles")}>
@@ -258,13 +313,15 @@ export const SharedViaLinkPage: FC = () => {
           </PanelSectionRow>
         </PanelSection>
       </div>
+      </div>
     );
   }
 
-  // No active share
+  // No active share: show hint text (createFromMain as description), keep Cancel button
   if (shareLinkSessions.length === 0) {
     return (
-      <div style={scrollContainerStyle}>
+      <div style={scrollRootStyle}>
+      <div style={scrollContentStyle}>
         <PanelSection title={t("shareLink.title")}>
           <PanelSectionRow>
             <Field label={t("shareLink.noActiveShare")}>
@@ -278,12 +335,142 @@ export const SharedViaLinkPage: FC = () => {
           </PanelSectionRow>
         </PanelSection>
       </div>
+      </div>
     );
   }
 
-  // Active share links list - show each session with link, QR, copy, end
+  // Detail view: single session (selectedSessionId set)
+  const selectedSession = selectedSessionId
+    ? shareLinkSessions.find((s) => s.sessionId === selectedSessionId)
+    : null;
+
+  if (selectedSessionId && selectedSession) {
+    const session = selectedSession;
+    const remaining = getRemaining(session);
+    const isHttps = session.downloadUrl.startsWith("https://");
+    const files = session.files ?? [];
+
+    return (
+      <div style={scrollRootStyle}>
+      <div style={scrollContentStyle}>
+        <PanelSection title={t("shareLink.title")}>
+          <PanelSectionRow>
+            <ButtonItem layout="below" onClick={() => setSelectedSessionId(null)}>
+              {t("shareLink.backToList")}
+            </ButtonItem>
+          </PanelSectionRow>
+        </PanelSection>
+
+        <PanelSection title={`${t("shareLink.sessionId")}: ${session.sessionId.toLowerCase()}`}>
+          {isHttps && (
+            <PanelSectionRow>
+              <div style={{ marginBottom: "6px", fontSize: "11px", color: "#f0b429" }}>
+                {t("shareLink.httpsCertHint")}
+              </div>
+            </PanelSectionRow>
+          )}
+          <PanelSectionRow>
+            <Field label={t("shareLink.Link")}>
+              {session.downloadUrl.replace(/\/\?.*$/, "").replace(/\/$/, "")}
+            </Field>
+          </PanelSectionRow>
+          <PanelSectionRow>
+            <Field label={t("shareLink.sessionId")}>
+              {session.sessionId}
+            </Field>
+          </PanelSectionRow>
+          <PanelSectionRow>
+            <Field label={t("shareLink.expiresIn")}>
+              <span style={{ color: remaining < 5 * 60 * 1000 ? "#ff6b6b" : "#4ade80" }}>
+                {formatRemainingTime(remaining)}
+              </span>
+            </Field>
+          </PanelSectionRow>
+          <PanelSectionRow>
+            <Focusable
+              style={{
+                padding: "6px 8px",
+                backgroundColor: "rgba(0,0,0,0.3)",
+                borderRadius: "6px",
+                fontSize: "10px",
+                wordBreak: "break-all",
+                marginBottom: "8px",
+              }}
+            >
+              {t("shareLink.orVisitDirect")}: {session.downloadUrl}
+            </Focusable>
+          </PanelSectionRow>
+          <PanelSectionRow>
+            <div style={{ textAlign: "center", marginBottom: "8px" }}>
+              <div style={{ fontSize: "11px", marginBottom: "4px", color: "#b8b6b4" }}>
+                {t("shareLink.qrCode")}
+              </div>
+              <img
+                src={qrCodeUrls[session.sessionId] ?? ""}
+                alt="QR Code"
+                style={{
+                  width: "160px",
+                  height: "160px",
+                  backgroundColor: "#fff",
+                  borderRadius: "6px",
+                  padding: "6px",
+                }}
+              />
+            </div>
+          </PanelSectionRow>
+          <PanelSectionRow>
+            <ButtonItem layout="below" onClick={() => handleCopy(session)}>
+              {t("shareLink.copyLink")}
+            </ButtonItem>
+          </PanelSectionRow>
+          <PanelSectionRow>
+            <ButtonItem layout="below" onClick={() => handleCloseSession(session)}>
+              {t("shareLink.closeShare")}
+            </ButtonItem>
+          </PanelSectionRow>
+        </PanelSection>
+
+        {files.length > 0 && (
+          <PanelSection title={t("shareLink.filesInShare")}>
+            <PanelSectionRow>
+              <Focusable style={{ maxHeight: "150px", overflowY: "auto" }}>
+                {files.map((file) => (
+                  <div
+                    key={file.id}
+                    style={{
+                      padding: "4px 0",
+                      fontSize: "12px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {file.isFolder
+                      ? `📁 ${file.fileName} (${file.fileCount ?? 0} ${t("upload.folderFiles")})`
+                      : file.fileName}
+                  </div>
+                ))}
+              </Focusable>
+            </PanelSectionRow>
+          </PanelSection>
+        )}
+
+        <PanelSection>
+          <PanelSectionRow>
+            <ButtonItem layout="below" onClick={() => setSelectedSessionId(null)}>
+              {t("shareLink.backToList")}
+            </ButtonItem>
+          </PanelSectionRow>
+        </PanelSection>
+      </div>
+      </div>
+    );
+  }
+
+  // List view: show all active sessions; click to open detail
   return (
-    <div style={scrollContainerStyle}>
+    <div style={scrollRootStyle}>
+    <div style={scrollContentStyle}>
       <PanelSection title={t("shareLink.title")}>
         <PanelSectionRow>
           <div style={{ marginBottom: "8px", fontSize: "12px", color: "#b8b6b4" }}>
@@ -302,88 +489,26 @@ export const SharedViaLinkPage: FC = () => {
         </PanelSectionRow>
       </PanelSection>
 
-      {shareLinkSessions.map((session) => {
-        const remaining = getRemaining(session);
-        const isHttps = session.downloadUrl.startsWith("https://");
-        return (
-          <PanelSection key={session.sessionId} title={`${t("shareLink.sessionId")}: ${session.sessionId.toLowerCase()}`}>
-            {isHttps && (
-              <PanelSectionRow>
-                <div style={{ marginBottom: "6px", fontSize: "11px", color: "#f0b429" }}>
-                  {t("shareLink.httpsCertHint")}
-                </div>
-              </PanelSectionRow>
-            )}
-            <PanelSectionRow>
-              <Field label={t("shareLink.Link")}>
-                {session.downloadUrl.replace(/\/\?.*$/, "").replace(/\/$/, "")}
-              </Field>
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <Field label={t("shareLink.sessionId")}>
-                {session.sessionId}
-              </Field>
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <Field label={t("shareLink.expiresIn")}>
-                <span style={{ color: remaining < 5 * 60 * 1000 ? "#ff6b6b" : "#4ade80" }}>
-                  {formatRemainingTime(remaining)}
-                </span>
-              </Field>
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <Focusable
-                style={{
-                  padding: "6px 8px",
-                  backgroundColor: "rgba(0,0,0,0.3)",
-                  borderRadius: "6px",
-                  fontSize: "10px",
-                  wordBreak: "break-all",
-                  marginBottom: "8px",
-                }}
+      <PanelSection title={t("shareLink.title")}>
+        {shareLinkSessions.map((session) => {
+          const remaining = getRemaining(session);
+          const fileCount = session.files?.length ?? 0;
+          return (
+            <PanelSectionRow key={session.sessionId}>
+              <ButtonItem
+                layout="below"
+                onClick={() => setSelectedSessionId(session.sessionId)}
               >
-                {t("shareLink.orVisitDirect")}: {session.downloadUrl}
-              </Focusable>
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <div style={{ textAlign: "center", marginBottom: "8px" }}>
-                <div style={{ fontSize: "11px", marginBottom: "4px", color: "#b8b6b4" }}>
-                  {t("shareLink.qrCode")}
-                </div>
-                <img
-                  src={getQRCodeUrl(session.downloadUrl)}
-                  alt="QR Code"
-                  style={{
-                    width: "160px",
-                    height: "160px",
-                    backgroundColor: "#fff",
-                    borderRadius: "6px",
-                    padding: "6px",
-                  }}
-                />
-              </div>
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <ButtonItem layout="below" onClick={() => handleCopy(session)}>
-                {t("shareLink.copyLink")}
+                <span style={{ fontSize: "13px" }}>
+                  {session.sessionId.toLowerCase().slice(0, 8)}… · {formatRemainingTime(remaining)}
+                  {fileCount > 0 && ` · ${fileCount} ${t("common.files")}`}
+                </span>
               </ButtonItem>
             </PanelSectionRow>
-            <PanelSectionRow>
-              <ButtonItem layout="below" onClick={() => handleCloseSession(session)}>
-                {t("shareLink.closeShare")}
-              </ButtonItem>
-            </PanelSectionRow>
-          </PanelSection>
-        );
-      })}
-
-      <PanelSection>
-        <PanelSectionRow>
-          <ButtonItem layout="below" onClick={() => Router.Navigate("/decky-localsend-config")}>
-            {t("shareLink.createFromMain")}
-          </ButtonItem>
-        </PanelSectionRow>
+          );
+        })}
       </PanelSection>
+    </div>
     </div>
   );
 };

@@ -378,7 +378,7 @@ function Content() {
           } else {
             progress = progress.map((p) => 
               p.fileId === textFile.id 
-                ? { ...p, status: 'error', error: uploadResult.data?.error || 'Upload failed' }
+                ? { ...p, status: 'error', error: uploadResult.data?.error || t("upload.failedTitle") }
                 : p
             );
           }
@@ -439,7 +439,7 @@ function Content() {
               if (uploadResult?.success) {
                 return { ...p, status: 'done' };
               } else if (uploadResult && !uploadResult.success) {
-                return { ...p, status: 'error', error: uploadResult?.error || 'Upload failed' };
+                return { ...p, status: 'error', error: uploadResult?.error || t("upload.failedTitle") };
               }
               return p;
             });
@@ -454,7 +454,7 @@ function Content() {
         } else {
           progress = progress.map((p) => {
             if (folderItems.some((f) => f.id === p.fileId) || regularFiles.some((f) => f.id === p.fileId)) {
-              return { ...p, status: 'error', error: batchUploadResult.data?.error || 'Upload failed' };
+              return { ...p, status: 'error', error: batchUploadResult.data?.error || t("upload.failedTitle") };
             }
             return p;
           });
@@ -476,13 +476,15 @@ function Content() {
         const successCount = progress.filter((p) => p.status === 'done').length;
         const failedCount = progress.filter((p) => p.status === 'error').length;
         toaster.toast({
-          title: t("common.success") + "/" + t("common.failed"),
-          body: `${successCount}/${failedCount}`,
+          title: t("upload.partialCompletedTitle"),
+          body: t("upload.partialCompletedBody")
+            .replace("{success}", String(successCount))
+            .replace("{failed}", String(failedCount)),
         });
       }
     } catch (error) {
       toaster.toast({
-        title: t("common.error"),
+        title: t("upload.failedTitle"),
         body: String(error),
       });
       setUploadProgress((prev) =>
@@ -648,7 +650,7 @@ function Content() {
             <ButtonItem 
               layout="below" 
               onClick={handleOpenScreenshotGallery} 
-              disabled={uploading}
+              disabled={uploading || !backend.running}
             >
               📷 {t("screenshot.openGallery")}
             </ButtonItem>
@@ -876,11 +878,14 @@ export default definePlugin(() => {
     if (event.type === "confirm_recv") {
       const data = event.data ?? {};
       const sessionId = String(data.sessionId || "");
+      const files = Array.isArray(data.files) ? data.files : [];
+      const totalFiles = data.totalFiles != null ? Number(data.totalFiles) : undefined;
       const modalResult = showModal(
         <ConfirmReceiveModal
           from={String(data.from || "")}
           fileCount={Number(data.fileCount || 0)}
-          files={Array.isArray(data.files) ? data.files : []}
+          files={files}
+          totalFiles={totalFiles}
           onConfirm={async (confirmed) => {
             if (!sessionId) {
               toaster.toast({
@@ -918,10 +923,12 @@ export default definePlugin(() => {
       const sessionId = String(data.sessionId || "");
       const fileCount = Number(data.fileCount || 0);
       const files = Array.isArray(data.files) ? data.files : [];
+      const totalFiles = data.totalFiles != null ? Number(data.totalFiles) : undefined;
       const modalResult = showModal(
         <ConfirmDownloadModal
           fileCount={fileCount}
           files={files}
+          totalFiles={totalFiles}
           onConfirm={async (confirmed) => {
             if (!sessionId) {
               toaster.toast({
@@ -969,14 +976,21 @@ export default definePlugin(() => {
   });
 
   // Listen for text received events from backend
-  const TextReceivedListener = addEventListener("text_received", (event: { title: string; content: string; fileName: string }) => {
+  const TextReceivedListener = addEventListener("text_received", (event: { title: string; content: string; fileName: string; sessionId?: string }) => {
+    const sessionId = String(event.sessionId ?? "");
     const modalResult = showModal(
       <TextReceivedModal
         title={event.title}
         content={event.content}
         fileName={event.fileName}
         onClose={() => {}}
-        closeModal={() => modalResult.Close()}
+        closeModal={() => {
+          if (sessionId) {
+            proxyGet(`/api/self/v1/text-received-dismiss?sessionId=${encodeURIComponent(sessionId)}`).finally(() => modalResult.Close());
+          } else {
+            modalResult.Close();
+          }
+        }}
       />
     );
   });
@@ -1010,9 +1024,9 @@ export default definePlugin(() => {
 
   return {
     // The name shown in various decky menus
-    name: "LocalSend",
+    name: "Decky Localsend",
     // The element displayed at the top of your plugin's menu
-    titleView: <div className={staticClasses.Title}>decky-LocalSend</div>,
+    titleView: <div className={staticClasses.Title}>Decky Localsend</div>,
     // The content of your plugin's menu
     content: <Content />,
     // The icon displayed in the plugin list

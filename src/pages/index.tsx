@@ -88,6 +88,7 @@ export const ConfigPage: FC = () => {
   const [saveReceiveHistory, setSaveReceiveHistory] = useState(true);
   const [enableExperimental, setEnableExperimental] = useState(false);
   const [useDownload, setUseDownload] = useState(false);
+  const [doNotMakeSessionFolder, setDoNotMakeSessionFolder] = useState(false);
   const [disableInfoLogging, setDisableInfoLogging] = useState(false);
   const [scanTimeout, setScanTimeout] = useState("500");
   const favorites = useLocalSendStore((state) => state.favorites);
@@ -134,7 +135,7 @@ export const ConfigPage: FC = () => {
         setScanMode(configToScanMode(result.legacy_mode ?? false, result.use_mixed_scan ?? true));
         setSkipNotify(!!result.skip_notify);
         setMulticastAddress(result.multicast_address ?? "");
-        setMulticastPort(String(result.multicast_port ?? ""));
+        setMulticastPort(result.multicast_port === 0 || result.multicast_port == null ? "" : String(result.multicast_port));
         setPin(result.pin ?? "");
         setAutoSave(!!result.auto_save);
         setAutoSaveFromFavorites(!!result.auto_save_from_favorites);
@@ -144,6 +145,7 @@ export const ConfigPage: FC = () => {
         setSaveReceiveHistory(result.save_receive_history !== false);
         setEnableExperimental(!!result.enable_experimental);
         setUseDownload(!!result.use_download);
+        setDoNotMakeSessionFolder(!!result.do_not_make_session_folder);
         setDisableInfoLogging(!!result.disable_info_logging);
         setScanTimeout(String(result.scan_timeout ?? 500));
       })
@@ -195,6 +197,7 @@ export const ConfigPage: FC = () => {
         save_receive_history: updates.save_receive_history ?? saveReceiveHistory,
         enable_experimental: updates.enable_experimental ?? enableExperimental,
         use_download: updates.use_download ?? useDownload,
+        do_not_make_session_folder: updates.do_not_make_session_folder ?? doNotMakeSessionFolder,
         disable_info_logging: updates.disable_info_logging ?? disableInfoLogging,
         scan_timeout: updates.scan_timeout ?? (parseInt(scanTimeout) || 500),
       });
@@ -550,7 +553,7 @@ export const ConfigPage: FC = () => {
           </ButtonItem>
         </PanelSectionRow>
         <PanelSectionRow>
-          <Field label={t("config.multicastPort")}>{multicastPort || t("config.default")}</Field>
+          <Field label={t("config.multicastPort")}>{!multicastPort || multicastPort === "0" ? t("config.default") : multicastPort}</Field>
         </PanelSectionRow>
         <PanelSectionRow>
           <ButtonItem layout="below" onClick={handleEditMulticastPort}>
@@ -651,6 +654,17 @@ export const ConfigPage: FC = () => {
             onChange={(checked: boolean) => {
               setUseDownload(checked);
               saveConfig({ use_download: checked });
+            }}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ToggleField
+            label={t("config.doNotMakeSessionFolder")}
+            description={t("config.doNotMakeSessionFolderDesc")}
+            checked={doNotMakeSessionFolder}
+            onChange={(checked: boolean) => {
+              setDoNotMakeSessionFolder(checked);
+              saveConfig({ do_not_make_session_folder: checked });
             }}
           />
         </PanelSectionRow>

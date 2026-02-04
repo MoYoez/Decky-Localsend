@@ -19,7 +19,7 @@ interface PinPromptModalProps {
 }
 
 export const PinPromptModal = ({
-  title = "PIN Required",
+  title = t("toast.pinRequired"),
   onSubmit,
   onCancel,
   closeModal,
