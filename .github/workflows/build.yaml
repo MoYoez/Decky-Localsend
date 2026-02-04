@@ -52,7 +52,7 @@ jobs:
 
       - name: Collect files
         run: |
-          mkdir -p release/DeckyLocalsend/bin
+          mkdir -p release/DeckyLocalsend/bin release/DeckyLocalsend/bin/web/out
           cp -R dist py_modules release/DeckyLocalsend/
           cp main.py plugin.json package.json LICENSE release/DeckyLocalsend/
           cp backend/out/localsend-core release/DeckyLocalsend/bin/
