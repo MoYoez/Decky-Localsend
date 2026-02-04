@@ -63,5 +63,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: decky-localsend
-          path: /tmp/repack/decky-localsend.zip
+          path: /tmp/repack/
           if-no-files-found: error
