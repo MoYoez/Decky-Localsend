@@ -40,7 +40,9 @@ jobs:
           fi
 
       - name: Build with Decky CLI
-        run: ./cli/decky plugin build .
+        run: |
+          sudo ./cli/decky plugin build .
+          sudo chown -R $(whoami) out
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
