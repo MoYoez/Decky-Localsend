@@ -41,13 +41,13 @@
 
 ## 使用方法
 
-1. 在你的 Steam Deck 上安装本插件 (从 release 下载最新 Release 即可)
+1. 在你的 Steam Deck 上安装本插件 (从 release 下载最新 Release 即可 / 或是进入测试商店下载测试版(v0.32))
 2. 从快捷访问菜单中打开插件
 3. 点击“启动后端”后，LocalSend 服务器会自动启动
 4. 你的 Steam Deck 现在可以被其他 LocalSend 客户端发现
 5. 从运行 LocalSend 的任意设备发送文件到你的 Steam Deck
 
-> 也许？很快上商店了？:(
+
 
 ## 配置说明
 
