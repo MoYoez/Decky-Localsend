@@ -86,8 +86,21 @@ class NotifyServer:
                         conn, _ = sock.accept()
                         # Handle connection in the same thread (simple implementation)
                         try:
-                            data = conn.recv(4096)
-                            if data:
+                            # Length-prefixed: 4 bytes little-endian uint32, then payload
+                            length_buf = conn.recv(4)
+                            if len(length_buf) != 4:
+                                continue
+                            length = int.from_bytes(length_buf, 'little')
+                            if length <= 0 or length > 32 * 1024:  # cap 32KB
+                                self._log_error(f"Invalid notify payload length: {length}")
+                                continue
+                            data = b''
+                            while len(data) < length:
+                                chunk = conn.recv(min(65536, length - len(data)))
+                                if not chunk:
+                                    break
+                                data += chunk
+                            if len(data) == length and data:
                                 notification = json.loads(data.decode('utf-8'))
                                 if self._notification_handler:
                                     self._notification_handler(notification)
