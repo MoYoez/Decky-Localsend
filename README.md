@@ -83,6 +83,8 @@ You can customize these settings through the plugin interface.
 
 - Plugins can only work in same transfer protocol sometimes, although it has detect method to prevent transfer connection failed.
 
+- When transferring a very large number of files (tested with 3000+ files) to the Deck, the sending side of LocalSend may appear to stutter or become choppy due to multiple running threads. However, this does not affect the actual file transfer.
+
 ## Acknowledgments
 
 - [LocalSend](https://localsend.org)
