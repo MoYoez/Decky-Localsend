@@ -1,6 +1,6 @@
 <div align="center">
 
-# decky-localsend
+# Decky Localsend
 
 [ENGLISH](README.md) | [简体中文](README-ZH-CN.md)
 
