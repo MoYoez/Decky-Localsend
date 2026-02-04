@@ -55,6 +55,7 @@ class Plugin:
         self.save_receive_history = True
         self.enable_experimental = False
         self.use_download = False  # Enable Download API (share via link)
+        self.do_not_make_session_folder = False
         self.disable_info_logging = False
         self.scan_timeout = 500  # scan timeout in seconds, default 500
         self.network_interface = "*"  # "*" means all interfaces
@@ -103,6 +104,7 @@ class Plugin:
             "save_receive_history": self.save_receive_history,
             "enable_experimental": self.enable_experimental,
             "use_download": self.use_download,
+            "do_not_make_session_folder": self.do_not_make_session_folder,
             "disable_info_logging": self.disable_info_logging,
             "download_folder": self.upload_dir,
             "scan_timeout": self.scan_timeout,
@@ -148,6 +150,7 @@ class Plugin:
             self.save_receive_history = bool(data.get("save_receive_history", self.save_receive_history))
             self.enable_experimental = bool(data.get("enable_experimental", False))
             self.use_download = bool(data.get("use_download", self.use_download))
+            self.do_not_make_session_folder = bool(data.get("do_not_make_session_folder", self.do_not_make_session_folder))
             self.disable_info_logging = bool(data.get("disable_info_logging", False))
             scan_timeout = data.get("scan_timeout", self.scan_timeout)
             try:
@@ -220,6 +223,7 @@ class Plugin:
             "save_receive_history": self.save_receive_history,
             "enable_experimental": self.enable_experimental,
             "use_download": self.use_download,
+            "do_not_make_session_folder": self.do_not_make_session_folder,
             "disable_info_logging": self.disable_info_logging,
             "download_folder": self.upload_dir,
             "scan_timeout": self.scan_timeout,
@@ -273,7 +277,8 @@ class Plugin:
             notification_type = notification.get('type')
             title = notification.get('title', '')
             message = notification.get('message', '')
-            notification_data = notification.get('data', {})
+            # Guard against JSON null: .get('data', {}) returns None when key exists with value null
+            notification_data = notification.get('data') or {}
             is_text_only = notification.get('isTextOnly', False)
 
             self._emit_notification_event({
@@ -282,26 +287,61 @@ class Plugin:
                 "message": message,
                 "data": notification_data,
             })
-            
-            session_id = notification_data.get('sessionId', '')
-            
+
+            # device_discovered / device_updated: no session payload, skip upload logic
+            if notification_type in ('device_discovered', 'device_updated'):
+                decky.logger.debug(f"Device notification: {notification_type} - {title}: {message}")
+                return
+
+            # text_received: single text/plain with preview, receiver returns 204 after user dismisses
+            if notification_type == 'text_received':
+                from_alias = notification_data.get('from', '')
+                content = notification_data.get('content', '') or message
+                file_name = notification_data.get('fileName', 'clipboard.txt')
+                display_title = notification_data.get('title') or title or 'Text Received'
+                session_id = notification_data.get('sessionId', '') or ''
+                self._add_receive_history(
+                    folder_path='',
+                    files=[file_name],
+                    title=display_title,
+                    is_text=True,
+                    text_content=content
+                )
+                asyncio.run_coroutine_threadsafe(
+                    decky.emit("text_received", {
+                        "title": display_title,
+                        "content": content,
+                        "fileName": file_name,
+                        "sessionId": session_id,
+                    }),
+                    self.loop
+                )
+                decky.logger.info(f"📝 Text received (no upload) from {from_alias}: {len(content)} chars")
+                return
+
+            session_id = notification_data.get('sessionId', '') or ''
+
             if notification_type == 'upload_start':
-                # New format: session-level with files array
-                total_files = notification_data.get('totalFiles', 0)
-                total_size = notification_data.get('totalSize', 0)
-                files = notification_data.get('files', [])
+                # New format: session-level with files array (guard against null from backend)
+                total_files = notification_data.get('totalFiles') or 0
+                total_size = notification_data.get('totalSize') or 0
+                files = notification_data.get('files') or []
                 
                 decky.logger.info(f"📤 Upload session started: {session_id}")
                 decky.logger.info(f"   Total files: {total_files}, Total size: {total_size} bytes")
                 
                 # Initialize session
+                do_not_make_session_folder = notification_data.get('doNotMakeSessionFolder', False)
+                upload_folder = notification_data.get('uploadFolder') or ''
                 if session_id not in self.upload_sessions:
                     self.upload_sessions[session_id] = {
                         '_meta': {
                             'total_files': total_files,
                             'total_size': total_size,
                             'start_time': time.time(),
-                            'is_text_only': is_text_only
+                            'is_text_only': is_text_only,
+                            'do_not_make_session_folder': do_not_make_session_folder,
+                            'upload_folder': upload_folder,
                         }
                     }
                 
@@ -325,12 +365,37 @@ class Plugin:
                     }
                 
             elif notification_type == 'upload_end':
-                # New format: session-level summary
-                total_files = notification_data.get('totalFiles', 0)
-                success_files = notification_data.get('successFiles', 0)
-                failed_files = notification_data.get('failedFiles', 0)
-                failed_file_ids = notification_data.get('failedFileIds', [])
-                
+                # New format: session-level summary (guard against null from backend)
+                total_files = notification_data.get('totalFiles') or 0
+                success_files = notification_data.get('successFiles') or 0
+                failed_files = notification_data.get('failedFiles') or 0
+                failed_file_ids = notification_data.get('failedFileIds') or []
+                save_paths = notification_data.get('savePaths') or {}
+                saved_file_names = notification_data.get('savedFileNames') or []
+                do_not_make_session_folder = notification_data.get('doNotMakeSessionFolder', False)
+                upload_folder = notification_data.get('uploadFolder') or self.upload_dir
+                if save_paths:
+                    first_path = next(iter(save_paths.values()))
+                    folder_path = os.path.dirname(first_path)
+                else:
+                    folder_path = upload_folder if do_not_make_session_folder else os.path.join(upload_folder, session_id)
+                if saved_file_names:
+                    files_in_folder = list(saved_file_names)
+                elif save_paths:
+                    files_in_folder = [os.path.basename(p) for p in save_paths.values()]
+                elif do_not_make_session_folder and folder_path == upload_folder:
+                    # Avoid listing entire upload folder; use session file list for this session only
+                    if session_id in self.upload_sessions:
+                        files_in_folder = [
+                            self.upload_sessions[session_id][fid]['file_name']
+                            for fid in self.upload_sessions[session_id]
+                            if fid != '_meta' and fid not in failed_file_ids
+                        ]
+                    else:
+                        files_in_folder = []
+                else:
+                    files_in_folder = os.listdir(folder_path) if os.path.isdir(folder_path) else []
+
                 decky.logger.info(f"✅ Upload session completed: {session_id}")
                 decky.logger.info(f"   Total: {total_files}, Success: {success_files}, Failed: {failed_files}")
                 if failed_file_ids:
@@ -355,7 +420,7 @@ class Plugin:
                     decky.logger.info(f"📝 Text-only notification detected")
                     # Read text content from uploaded file
                     try:
-                        file_path = os.path.join(self.upload_dir, session_id)
+                        file_path = folder_path
                         txt_files = [f for f in os.listdir(file_path) if f.endswith('.txt')]
                         text_file_name = txt_files[0] if txt_files else ''
                         if text_file_name and os.path.exists(os.path.join(file_path, text_file_name)):
@@ -388,11 +453,6 @@ class Plugin:
                 else:
                     # Send file received notification if enabled
                     try:
-                        folder_path = os.path.join(self.upload_dir, session_id)
-                        files_in_folder = []
-                        if os.path.isdir(folder_path):
-                            files_in_folder = os.listdir(folder_path)
-                        
                         # Save to receive history
                         self._add_receive_history(folder_path, files_in_folder, title or "File Received")
                         
@@ -404,7 +464,7 @@ class Plugin:
                                     "folderPath": folder_path,
                                     "fileCount": len(files_in_folder),
                                     "files": files_in_folder,
-                                    "totalFiles": total_files,
+                                    "totalFiles": total_files,  # may be > len(files) when truncated
                                     "successFiles": success_files,
                                     "failedFiles": failed_files,
                                     "failedFileIds": failed_file_ids
@@ -471,9 +531,11 @@ class Plugin:
             cmd.extend(["-scanTimeout", str(self.scan_timeout)])
         cmd.append(f"-useAutoSave={'true' if self.auto_save else 'false'}")
         cmd.append(f"-useAutoSaveFromFavorites={'true' if self.auto_save_from_favorites else 'false'}")
-        cmd.append(f"-useHttps={'true' if self.use_https else 'false'}")
+        cmd.append(f"-useHttp={'true' if not self.use_https else 'false'}")
         if self.use_download:
             cmd.append("-useDownload")
+        if self.do_not_make_session_folder:
+            cmd.append("-doNotMakeSessionFolder")
 
         self.process = subprocess.Popen(
             cmd,
@@ -649,6 +711,7 @@ class Plugin:
             "save_receive_history": self.save_receive_history,
             "enable_experimental": self.enable_experimental,
             "use_download": self.use_download,
+            "do_not_make_session_folder": self.do_not_make_session_folder,
             "disable_info_logging": self.disable_info_logging,
             "scan_timeout": self.scan_timeout,
         }
@@ -670,6 +733,7 @@ class Plugin:
         save_receive_history = bool(config.get("save_receive_history", True))
         enable_experimental = bool(config.get("enable_experimental", False))
         use_download = bool(config.get("use_download", False))
+        do_not_make_session_folder = bool(config.get("do_not_make_session_folder", False))
         disable_info_logging = bool(config.get("disable_info_logging", False))
         scan_timeout_raw = config.get("scan_timeout", 500)
         try:
@@ -699,6 +763,7 @@ class Plugin:
         self.save_receive_history = save_receive_history
         self.enable_experimental = enable_experimental
         self.use_download = use_download
+        self.do_not_make_session_folder = do_not_make_session_folder
         self.disable_info_logging = disable_info_logging
         self.scan_timeout = scan_timeout
 
@@ -782,7 +847,7 @@ class Plugin:
             self.save_receive_history = True
             self.enable_experimental = False
             self.use_download = False
-            self.disable_info_logging = False
+            self.disable_info_logging = True
             self.scan_timeout = 500
             self.upload_dir = os.path.join(decky.DECKY_PLUGIN_RUNTIME_DIR, "uploads")
             

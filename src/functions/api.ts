@@ -81,6 +81,7 @@ export const getBackendConfig = callable<
     save_receive_history: boolean;
     enable_experimental: boolean;
     use_download: boolean;
+    do_not_make_session_folder: boolean;
     disable_info_logging: boolean;
     scan_timeout: number;
   }
@@ -105,6 +106,7 @@ export const setBackendConfig = callable<
       save_receive_history: boolean;
       enable_experimental: boolean;
       use_download: boolean;
+      do_not_make_session_folder?: boolean;
       disable_info_logging: boolean;
       scan_timeout: number | string;
     }

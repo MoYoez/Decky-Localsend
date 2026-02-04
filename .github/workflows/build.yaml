@@ -1,0 +1,64 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  build_plugin:
+    name: Build Plugin
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set SYSTEM_ARCH
+        run: echo "SYSTEM_ARCH=$RUNNER_OS" >> $GITHUB_ENV
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: pnpm
+
+      - name: Download Decky CLI
+        run: |
+          mkdir -p cli
+          if [[ "$SYSTEM_ARCH" =~ "Linux" ]]; then
+            curl -L -o "$(pwd)/cli/decky" "https://github.com/SteamDeckHomebrew/cli/releases/latest/download/decky-linux-x86_64"
+            chmod +x cli/decky
+          fi
+
+      - name: Build with Decky CLI
+        run: |
+          sudo mkdir -p /tmp/output
+          sudo $(pwd)/cli/decky plugin build -b -o /tmp/output
+          sudo chown -R $(whoami) /tmp/output
+
+      - name: Repack artifact
+        run: |
+          ZIP_FILE=$(ls /tmp/output/*.zip | head -1)
+    
+          rm -rf /tmp/unpacked /tmp/repack
+          mkdir -p /tmp/unpacked /tmp/repack/decky-localsend
+    
+          unzip -q "$ZIP_FILE" -d /tmp/unpacked
+          SRC_DIR=$(find /tmp/unpacked -mindepth 1 -maxdepth 1 -type d | head -1)
+          cp -R "$SRC_DIR"/* /tmp/repack/decky-localsend
+          
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: decky-localsend
+          path: /tmp/repack/
+          if-no-files-found: error

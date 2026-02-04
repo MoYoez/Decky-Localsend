@@ -104,11 +104,11 @@ function DevicesPanel({
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 'bold' }}>
-                    {device.alias ?? "Unknown Device"}
+                    {device.alias ?? t("devices.unknownAlias")}
                     {selectedDevice?.fingerprint === device.fingerprint ? ` (${t("backend.selected")})` : ""}
                   </div>
                   <div style={{ fontSize: '12px', opacity: 0.7 }}>
-                    {device.ip_address as string} - {device.deviceModel ?? "unknown"}
+                    {device.ip_address as string} - {device.deviceModel ?? t("devices.unknownModel")}
                   </div>
                 </div>
                 {(onAddToFavorites || onRemoveFromFavorites) && device.fingerprint && (
