@@ -6,7 +6,6 @@ import {
   Field,
   Focusable,
   ToggleField,
-  SliderField,
   showModal,
   SidebarNavigation,
 } from "@decky/ui";
