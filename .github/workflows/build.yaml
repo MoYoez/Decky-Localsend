@@ -18,17 +18,11 @@ jobs:
         with:
           submodules: true
 
-      - name: Set SYSTEM_ARCH
-        run: echo "SYSTEM_ARCH=$RUNNER_OS" >> $GITHUB_ENV
-
-
       - name: Download Decky CLI
         run: |
           mkdir -p cli
-          if [[ "$SYSTEM_ARCH" =~ "Linux" ]]; then
-            curl -L -o "$(pwd)/cli/decky" "https://github.com/SteamDeckHomebrew/cli/releases/latest/download/decky-linux-x86_64"
-            chmod +x cli/decky
-          fi
+          curl -L -o "$(pwd)/cli/decky" "https://github.com/SteamDeckHomebrew/cli/releases/latest/download/decky-linux-x86_64"
+          chmod +x cli/decky
 
       - name: Build with Decky CLI
         run: |
