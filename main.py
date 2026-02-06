@@ -53,7 +53,6 @@ class Plugin:
         self.use_https = True
         self.notify_on_download = True
         self.save_receive_history = True
-        self.enable_experimental = False
         self.use_download = False  # Enable Download API (share via link)
         self.do_not_make_session_folder = False
         self.disable_info_logging = False
@@ -102,7 +101,6 @@ class Plugin:
             "network_interface": self.network_interface,
             "notify_on_download": self.notify_on_download,
             "save_receive_history": self.save_receive_history,
-            "enable_experimental": self.enable_experimental,
             "use_download": self.use_download,
             "do_not_make_session_folder": self.do_not_make_session_folder,
             "disable_info_logging": self.disable_info_logging,
@@ -148,7 +146,6 @@ class Plugin:
             self.network_interface = str(data.get("network_interface", self.network_interface)).strip() or "*"
             self.notify_on_download = bool(data.get("notify_on_download", self.notify_on_download))
             self.save_receive_history = bool(data.get("save_receive_history", self.save_receive_history))
-            self.enable_experimental = bool(data.get("enable_experimental", False))
             self.use_download = bool(data.get("use_download", self.use_download))
             self.do_not_make_session_folder = bool(data.get("do_not_make_session_folder", self.do_not_make_session_folder))
             self.disable_info_logging = bool(data.get("disable_info_logging", False))
@@ -221,7 +218,6 @@ class Plugin:
             "network_interface": self.network_interface,
             "notify_on_download": self.notify_on_download,
             "save_receive_history": self.save_receive_history,
-            "enable_experimental": self.enable_experimental,
             "use_download": self.use_download,
             "do_not_make_session_folder": self.do_not_make_session_folder,
             "disable_info_logging": self.disable_info_logging,
@@ -705,7 +701,6 @@ class Plugin:
             "network_interface": self.network_interface,
             "notify_on_download": self.notify_on_download,
             "save_receive_history": self.save_receive_history,
-            "enable_experimental": self.enable_experimental,
             "use_download": self.use_download,
             "do_not_make_session_folder": self.do_not_make_session_folder,
             "disable_info_logging": self.disable_info_logging,
@@ -727,7 +722,6 @@ class Plugin:
         network_interface = str(config.get("network_interface", "*")).strip() or "*"
         notify_on_download = bool(config.get("notify_on_download", False))
         save_receive_history = bool(config.get("save_receive_history", True))
-        enable_experimental = bool(config.get("enable_experimental", False))
         use_download = bool(config.get("use_download", False))
         do_not_make_session_folder = bool(config.get("do_not_make_session_folder", False))
         disable_info_logging = bool(config.get("disable_info_logging", False))
@@ -757,7 +751,6 @@ class Plugin:
         self.network_interface = network_interface
         self.notify_on_download = notify_on_download
         self.save_receive_history = save_receive_history
-        self.enable_experimental = enable_experimental
         self.use_download = use_download
         self.do_not_make_session_folder = do_not_make_session_folder
         self.disable_info_logging = disable_info_logging
@@ -841,7 +834,6 @@ class Plugin:
             self.network_interface = "*"
             self.notify_on_download = False
             self.save_receive_history = True
-            self.enable_experimental = False
             self.use_download = False
             self.disable_info_logging = True
             self.scan_timeout = 500

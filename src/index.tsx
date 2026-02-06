@@ -69,7 +69,6 @@ function Content() {
   const [uploading, setUploading] = useState(false);
   const [saveReceiveHistory, setSaveReceiveHistory] = useState(true);
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo[]>([]);
-  const [enableExperimental, setEnableExperimental] = useState(false);
   const [useDownload, setUseDownload] = useState(false);
   const [deviceAlias, setDeviceAlias] = useState("");
   const [devicePort, setDevicePort] = useState<number>(53317);
@@ -121,7 +120,6 @@ function Content() {
     getBackendConfig()
       .then((result) => {
         setSaveReceiveHistory(result.save_receive_history !== false);
-        setEnableExperimental(!!result.enable_experimental);
         setUseDownload(!!result.use_download);
         setDevicePort(result.multicast_port || 53317);
       })
@@ -144,7 +142,6 @@ function Content() {
     try {
       const result = await getBackendConfig();
       setSaveReceiveHistory(result.save_receive_history !== false);
-      setEnableExperimental(!!result.enable_experimental);
       setUseDownload(!!result.use_download);
       setDevicePort(result.multicast_port || 53317);
       await fetchDeviceInfo();
@@ -645,17 +642,15 @@ function Content() {
             {t("upload.addText")}
           </ButtonItem>
         </PanelSectionRow>
-        {enableExperimental && (
-          <PanelSectionRow>
-            <ButtonItem 
-              layout="below" 
-              onClick={handleOpenScreenshotGallery} 
-              disabled={uploading || !backend.running}
-            >
-              📷 {t("screenshot.openGallery")}
-            </ButtonItem>
-          </PanelSectionRow>
-        )}
+        <PanelSectionRow>
+          <ButtonItem 
+            layout="below" 
+            onClick={handleOpenScreenshotGallery} 
+            disabled={uploading || !backend.running}
+          >
+            {t("screenshot.openGallery")}
+          </ButtonItem>
+        </PanelSectionRow>
         <PanelSectionRow>
           <ButtonItem
             layout="below"
