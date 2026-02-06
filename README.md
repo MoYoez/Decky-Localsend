@@ -88,6 +88,8 @@ You can customize these settings through the plugin interface.
 
 - HTTP scanning may cause increased latency. HTTP timeout has been set to 60 seconds and runs every 30 seconds by default. Devices are updated via Notify, so you do not need to manually refresh to see remote devices.
 
+- Due to performance limitations of Decky, **do not select folders containing more than 200 files** when choosing a folder, as this may cause Decky to crash!
+
 ### Compatibility Table
 
 | Communication Method | Decky-Localsend Supported | Discoverable Remote Localsend Devices | Notes                                       |
