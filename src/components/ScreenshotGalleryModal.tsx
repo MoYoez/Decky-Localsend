@@ -27,10 +27,12 @@ export const ScreenshotGalleryModal = ({ onSelectScreenshots, closeModal }: Scre
   const [screenshots, setScreenshots] = useState<Screenshot[]>([]);
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
+  const [selectedScreenshots, setSelectedScreenshots] = useState<Map<string, Screenshot>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [selectAll, setSelectAll] = useState(false);
   const [imageBlobUrls, setImageBlobUrls] = useState<Map<string, string>>(new Map());
+
+  // Per-page "select all": derived from current page only
+  const selectAll = screenshots.length > 0 && screenshots.every((s) => selectedScreenshots.has(s.path));
 
   const pageSize = 10;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -116,27 +118,32 @@ export const ScreenshotGalleryModal = ({ onSelectScreenshots, closeModal }: Scre
   };
 
   const toggleScreenshot = (path: string) => {
-    const newSelected = new Set(selectedPaths);
-    if (newSelected.has(path)) {
-      newSelected.delete(path);
-    } else {
-      newSelected.add(path);
-    }
-    setSelectedPaths(newSelected);
-    setSelectAll(newSelected.size === screenshots.length);
+    setSelectedScreenshots((prev) => {
+      const next = new Map(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        const screenshot = screenshots.find((s) => s.path === path);
+        if (screenshot) next.set(path, screenshot);
+      }
+      return next;
+    });
   };
 
   const toggleSelectAll = (checked: boolean) => {
-    setSelectAll(checked);
-    if (checked) {
-      setSelectedPaths(new Set(screenshots.map(s => s.path)));
-    } else {
-      setSelectedPaths(new Set());
-    }
+    setSelectedScreenshots((prev) => {
+      const next = new Map(prev);
+      if (checked) {
+        screenshots.forEach((s) => next.set(s.path, s));
+      } else {
+        screenshots.forEach((s) => next.delete(s.path));
+      }
+      return next;
+    });
   };
 
   const handleConfirm = () => {
-    const selected = screenshots.filter(s => selectedPaths.has(s.path));
+    const selected = Array.from(selectedScreenshots.values());
     if (selected.length === 0) {
       toaster.toast({
         title: t("screenshot.noSelection"),
@@ -214,7 +221,7 @@ export const ScreenshotGalleryModal = ({ onSelectScreenshots, closeModal }: Scre
                   {t("screenshot.page")}: {currentPage} / {totalPages}
                 </span>
                 <span style={{ fontSize: "14px", opacity: 0.8 }}>
-                  {t("screenshot.selected")}: {selectedPaths.size} / {total}
+                  {t("screenshot.selected")}: {selectedScreenshots.size} / {total}
                 </span>
               </div>
             </div>
@@ -236,7 +243,7 @@ export const ScreenshotGalleryModal = ({ onSelectScreenshots, closeModal }: Scre
                   onClick={() => toggleScreenshot(screenshot.path)}
                   className="screenshot-item"
                   style={{
-                    border: selectedPaths.has(screenshot.path) 
+                    border: selectedScreenshots.has(screenshot.path) 
                       ? "3px solid #4CAF50" 
                       : "1px solid #666",
                     borderRadius: "8px",
@@ -282,7 +289,7 @@ export const ScreenshotGalleryModal = ({ onSelectScreenshots, closeModal }: Scre
                         {t("screenshot.loading")}
                       </div>
                     )}
-                    {selectedPaths.has(screenshot.path) && (
+                    {selectedScreenshots.has(screenshot.path) && (
                       <div style={{
                         position: "absolute",
                         top: "5px",
@@ -366,9 +373,9 @@ export const ScreenshotGalleryModal = ({ onSelectScreenshots, closeModal }: Scre
                 <DialogButton 
                   style={{ minWidth: "80px", padding: "8px 12px", fontSize: "13px" }}
                   onClick={handleConfirm}
-                  disabled={selectedPaths.size === 0}
+                  disabled={selectedScreenshots.size === 0}
                 >
-                  {t("screenshot.addToQueue")} ({selectedPaths.size})
+                  {t("screenshot.addToQueue")} ({selectedScreenshots.size})
                 </DialogButton>
               </div>
             </Focusable>
