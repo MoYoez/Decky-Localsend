@@ -31,13 +31,12 @@
 - 支持浏览截图上传
 - 一些 Localsend 自己的特性 (e.g. 接受历史列表 PIN码 ，以及部分环境下 http / https 环境处理)
 
+## 演示
 
-## 可参考的使用场景
-
-- 配合 GridDB 传输一部分图片
-- 一部分场景下在户外的快传软件（毕竟deck是带出门用的多）
-- 免切换快速传截图
-- 多设备临时分享
+![preview_cn_1](.github/assets/preview_cn_1.jpg)
+![preview_cn_2](.github/assets/preview_cn_2.jpg)
+![preview_cn_3](.github/assets/preview_cn_3.jpg)
+![preview_cn_4](.github/assets/preview_cn_4.jpg)
 
 ## 使用方法
 
@@ -51,7 +50,6 @@
 3. 点击“启动后端”后，LocalSend 服务器会自动启动
 4. 你的 Steam Deck 现在可以被其他 LocalSend 客户端发现
 5. 从运行 LocalSend 的任意设备发送文件到你的 Steam Deck
-
 
 
 ## 配置说明

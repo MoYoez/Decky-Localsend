@@ -29,12 +29,12 @@ Related Backend Repo: [MoYoez/localsend-go](https://github.com/MoYoez/localsend-
 - Upload and browse screenshots
 - Some unique LocalSend features (e.g., accepting previous transfer list,  PINs, handling HTTP/HTTPS in certain environments)
 
-## Reference Usage Scenarios
+## Demo
 
-- Transfer some images with GridDB
-- Use as a fast file transfer tool outdoors in certain scenarios (since the Deck is often used on the go)
-- Quickly share screenshots without switching to desk
-- Temporary sharing across multiple devices
+![preview_en_1](.github/assets/preview_en_1.jpg)
+![preview_en_2](.github/assets/preview_en_2.jpg)
+![preview_en_3](.github/assets/preview_en_3.jpg)
+![preview_en_4](.github/assets/preview_en_4.jpg)
 
 ## Usage
 
