@@ -4,7 +4,7 @@ import subprocess
 import time
 import json
 
-from typing import Dict, Any
+from typing import Any, Dict, Optional
 
 
 import decky  # pyright: ignore[reportMissingModuleSource]
@@ -175,7 +175,18 @@ class Plugin:
             logger=lambda msg: decky.logger.error(msg)
         )
 
-    def _add_receive_history(self, folder_path: str, files: list, title: str = "", is_text: bool = False, text_content: str = ""):
+    def _add_receive_history(
+        self,
+        folder_path: str,
+        files: list,
+        title: str = "",
+        is_text: bool = False,
+        text_content: str = "",
+        total_files: Optional[int] = None,
+        success_files: Optional[int] = None,
+        failed_files: Optional[int] = None,
+        failed_file_ids: Optional[list] = None,
+    ):
         """Add a new entry to receive history"""
         if not self.save_receive_history:
             return
@@ -186,7 +197,11 @@ class Plugin:
             title=title,
             is_text=is_text,
             text_content=text_content,
-            current_count=len(self.receive_history)
+            current_count=len(self.receive_history),
+            total_files=total_files,
+            success_files=success_files,
+            failed_files=failed_files,
+            failed_file_ids=failed_file_ids,
         )
         
         self.receive_history.insert(0, entry)  # Insert at beginning (newest first)
@@ -369,11 +384,17 @@ class Plugin:
                 saved_file_names = notification_data.get('savedFileNames') or []
                 do_not_make_session_folder = notification_data.get('doNotMakeSessionFolder', False)
                 upload_folder = notification_data.get('uploadFolder') or self.upload_dir
+                # Display path: always the receive root (session dir), not a subfolder of first file
+                display_folder_path = upload_folder if do_not_make_session_folder else os.path.join(upload_folder, session_id)
+                if not os.path.isabs(display_folder_path):
+                    display_folder_path = os.path.normpath(os.path.join(os.path.abspath(self.upload_dir), display_folder_path))
+                else:
+                    display_folder_path = os.path.normpath(display_folder_path)
                 if save_paths:
                     first_path = next(iter(save_paths.values()))
                     folder_path = os.path.dirname(first_path)
                 else:
-                    folder_path = upload_folder if do_not_make_session_folder else os.path.join(upload_folder, session_id)
+                    folder_path = display_folder_path
                 if saved_file_names:
                     files_in_folder = list(saved_file_names)
                 elif save_paths:
@@ -448,25 +469,33 @@ class Plugin:
                 else:
                     # Send file received notification if enabled
                     try:
-                        # Save to receive history
-                        self._add_receive_history(folder_path, files_in_folder, title or "File Received")
+                        # Save to receive history (use display path and actual totals)
+                        self._add_receive_history(
+                            display_folder_path,
+                            files_in_folder,
+                            title or "File Received",
+                            total_files=total_files,
+                            success_files=success_files,
+                            failed_files=failed_files,
+                            failed_file_ids=failed_file_ids,
+                        )
                         
-                        # Send notification if enabled
+                        # Send notification if enabled (folderPath = receive root; fileCount = actual total)
                         if self.notify_on_download:
                             asyncio.run_coroutine_threadsafe(
                                 decky.emit("file_received", {
                                     "title": title or "File Received",
-                                    "folderPath": folder_path,
-                                    "fileCount": len(files_in_folder),
+                                    "folderPath": display_folder_path,
+                                    "fileCount": total_files,
                                     "files": files_in_folder,
-                                    "totalFiles": total_files,  # may be > len(files) when truncated
+                                    "totalFiles": total_files,
                                     "successFiles": success_files,
                                     "failedFiles": failed_files,
                                     "failedFileIds": failed_file_ids
                                 }),
                                 self.loop
                             )
-                            decky.logger.info(f"📁 File received notification sent: {folder_path}")
+                            decky.logger.info(f"📁 File received notification sent: {display_folder_path}")
                     except Exception as e:
                         decky.logger.error(f"Failed to send file received notification: {e}")
                     

@@ -148,7 +148,7 @@ export const SharedViaLinkPage: FC = () => {
   // Cancel creating share
   const handleCancelCreate = () => {
     setPendingShare(null);
-    Router.Navigate("/decky-localsend-config");
+    Router.NavigateBack();
   };
 
   // Edit PIN with modal
@@ -229,7 +229,7 @@ export const SharedViaLinkPage: FC = () => {
             </Field>
           </PanelSectionRow>
           <PanelSectionRow>
-            <ButtonItem layout="below" onClick={() => Router.Navigate("/decky-localsend-config")}>
+            <ButtonItem layout="below" onClick={() => Router.NavigateBack()}>
               {t("common.cancel")}
             </ButtonItem>
           </PanelSectionRow>
@@ -329,7 +329,7 @@ export const SharedViaLinkPage: FC = () => {
             </Field>
           </PanelSectionRow>
           <PanelSectionRow>
-            <ButtonItem layout="below" onClick={() => Router.Navigate("/decky-localsend-config")}>
+            <ButtonItem layout="below" onClick={() => Router.NavigateBack()}>
               {t("common.cancel")}
             </ButtonItem>
           </PanelSectionRow>

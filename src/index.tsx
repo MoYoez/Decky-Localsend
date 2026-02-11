@@ -17,7 +17,7 @@ import {
   routerHook,
 } from "@decky/api"
 
-import { useLocalSendStore } from "./utils/store";
+import { useLocalSendStore, type ReceiveProgressState } from "./utils/store";
 import { useEffect, useRef, useState } from "react";
 import { FaTimes } from "react-icons/fa";
 
@@ -26,6 +26,7 @@ import { TextReceivedModal } from "./components/TextReceivedModal";
 import { ConfirmReceiveModal } from "./components/ConfirmReceiveModal";
 import { ConfirmDownloadModal } from "./components/ConfirmDownloadModal";
 import { FileReceivedModal } from "./components/FileReceivedModal";
+import { ReceiveProgressPanel } from "./components/ReceiveProgressPanel";
 import { BasicInputBoxModal } from "./components/basicInputBoxModal";
 import { ReceiveHistoryPanel } from "./components/ReceiveHistoryPanel";
 import { ScreenshotGalleryModal } from "./components/ScreenshotGalleryModal";
@@ -75,6 +76,7 @@ function Content() {
   const [devicePort, setDevicePort] = useState<number>(53317);
   const favorites = useLocalSendStore((state) => state.favorites);
   const setFavorites = useLocalSendStore((state) => state.setFavorites);
+  const receiveProgress = useLocalSendStore((state) => state.receiveProgress);
 
   // Fetch network info when backend is running
   const fetchNetworkInfo = async () => {
@@ -228,12 +230,17 @@ function Content() {
     handleUpload(onlineFav.device);
   };
 
-  const openInputModal = (title: string, label: string) =>
+  const openInputModal = (
+    title: string,
+    label: string,
+    options?: { multiline?: boolean }
+  ) =>
     new Promise<string | null>((resolve) => {
       const modal = showModal(
         <BasicInputBoxModal
           title={title}
           label={label}
+          multiline={options?.multiline}
           onSubmit={(value) => {
             resolve(value);
             modal.Close();
@@ -248,7 +255,7 @@ function Content() {
     });
 
   const handleAddText = async () => {
-    const value = await openInputModal(t("modal.sendText"), t("modal.enterTextContent"));
+    const value = await openInputModal(t("modal.sendText"), t("modal.enterTextContent"), { multiline: true });
     if (value === null) {
       return;
     }
@@ -577,6 +584,7 @@ function Content() {
 
   return (
     <>
+      {receiveProgress && <ReceiveProgressPanel receiveProgress={receiveProgress} />}
       <PanelSection title={t("backend.title")}>
         <PanelSectionRow>
           <ToggleField
@@ -977,13 +985,60 @@ export default definePlugin(() => {
       return;
     }
 
+    if (event.type === "upload_cancelled") {
+      useLocalSendStore.getState().setReceiveProgress(null);
+      toaster.toast({
+        title: t("notify.uploadCancelled"),
+        body: "",
+      });
+      return;
+    }
+
+    if (event.type === "upload_start") {
+      const data = event.data ?? {};
+      useLocalSendStore.getState().setReceiveProgress({
+        sessionId: String(data.sessionId ?? ""),
+        totalFiles: Number(data.totalFiles ?? 0),
+        completedCount: 0,
+        currentFileName: "",
+      });
+    }
+
+    if (event.type === "upload_progress") {
+      const data = event.data ?? {};
+      useLocalSendStore.getState().setReceiveProgress((prev: ReceiveProgressState | null) => {
+        if (!prev || String(data.sessionId ?? "") !== prev.sessionId) return prev;
+        const completed = Number(data.successFiles ?? 0) + Number(data.failedFiles ?? 0);
+        return {
+          ...prev,
+          completedCount: completed,
+          currentFileName: String(data.currentFileName ?? ""),
+        };
+      });
+      return;
+    }
+
+    if (event.type === "upload_end") {
+      const data = event.data ?? {};
+      useLocalSendStore.getState().setReceiveProgress((prev) => (prev?.sessionId === data.sessionId ? null : prev));
+    }
+
     // Skip toast for info type notifications (don't show decky info)
     if (event.type === "info") {
       return;
     }
 
+    // i18n for upload_start / upload_end toast title (including text-only variant)
+    const isTextOnly = !!(event as { isTextOnly?: boolean }).isTextOnly;
+    let notifyTitleKey: string | null = null;
+    if (event.type === "upload_start") {
+      notifyTitleKey = isTextOnly ? "notify.textUploadStarted" : "notify.uploadStarted";
+    } else if (event.type === "upload_end") {
+      notifyTitleKey = isTextOnly ? "notify.textUploadCompleted" : "notify.uploadCompleted";
+    }
+    const title = notifyTitleKey ? t(notifyTitleKey) : (event.title || t("toast.notification"));
     toaster.toast({
-      title: event.title || t("toast.notification"),
+      title,
       body: event.message || "",
     });
   });

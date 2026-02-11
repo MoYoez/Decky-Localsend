@@ -14,14 +14,29 @@ import {
   interface basicInputBoxModalProps {
     title?: string;
     label?: string;
+    /** When true, show a resizable textarea instead of single-line input */
+    multiline?: boolean;
     onSubmit: (inputValue: string) => void;
     onCancel: () => void;
     closeModal?: () => void;
   }
+
+  const textareaStyle: React.CSSProperties = {
+    width: "100%",
+    minWidth: "200px",
+    minHeight: "120px",
+    maxHeight: "320px",
+    resize: "vertical",
+    padding: "8px 12px",
+    boxSizing: "border-box",
+    fontFamily: "inherit",
+    fontSize: "14px",
+  };
   
   export const BasicInputBoxModal = ({
     title = "",
     label = "",
+    multiline = false,
     onSubmit,
     onCancel,
     closeModal,
@@ -45,11 +60,21 @@ import {
         <DialogHeader>{title}</DialogHeader>
         <DialogBody>
           <Field label={label}>
-            <TextField
-              value={inputValue}
-              onChange={(e) => setInputValue(e?.target?.value || "")}
-              style={{ width: "100%",minWidth: "200px" }}
-            />
+            {multiline ? (
+              <textarea
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                rows={6}
+                style={textareaStyle}
+                placeholder=""
+              />
+            ) : (
+              <TextField
+                value={inputValue}
+                onChange={(e) => setInputValue(e?.target?.value || "")}
+                style={{ width: "100%", minWidth: "200px" }}
+              />
+            )}
           </Field>
         </DialogBody>
         <DialogFooter>

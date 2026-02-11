@@ -37,6 +37,14 @@ interface PendingShare {
   files: FileInfo[];
 }
 
+// Receive progress (receiver-side: shown during upload_start .. upload_end)
+export interface ReceiveProgressState {
+  sessionId: string;
+  totalFiles: number;
+  completedCount: number;
+  currentFileName: string;
+}
+
 // Store state interface
 interface LocalSendStore {
   // Available devices state
@@ -67,6 +75,10 @@ interface LocalSendStore {
   // Favorites (preserved when modal closes / Content remounts so heart stays lit)
   favorites: FavoriteDevice[];
   setFavorites: (favorites: FavoriteDevice[]) => void;
+
+  // Receive progress (receiver-side: upload_start .. upload_end, used by unix_socket_notification listener)
+  receiveProgress: ReceiveProgressState | null;
+  setReceiveProgress: (value: ReceiveProgressState | null | ((prev: ReceiveProgressState | null) => ReceiveProgressState | null)) => void;
   
   // Reset all state
   resetAll: () => void;
@@ -81,6 +93,7 @@ export const useLocalSendStore = create<LocalSendStore>((set) => ({
   shareLinkSessions: [],
   pendingShare: null,
   favorites: [],
+  receiveProgress: null,
 
   // Actions for devices
   setDevices: (devices) => set({ devices }),
@@ -132,6 +145,11 @@ export const useLocalSendStore = create<LocalSendStore>((set) => ({
 
   setFavorites: (favorites) => set({ favorites }),
 
+  setReceiveProgress: (value) =>
+    set((state) => ({
+      receiveProgress: typeof value === "function" ? value(state.receiveProgress) : value,
+    })),
+
   // Reset all state to initial values
   resetAll: () => set({
     devices: [],
@@ -140,5 +158,6 @@ export const useLocalSendStore = create<LocalSendStore>((set) => ({
     shareLinkSessions: [],
     pendingShare: null,
     favorites: [],
+    receiveProgress: null,
   }),
 }));

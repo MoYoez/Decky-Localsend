@@ -50,6 +50,10 @@ export interface ReceiveHistoryItem {
   isText?: boolean;
   textPreview?: string;
   textContent?: string;
+  totalFiles?: number;
+  successFiles?: number;
+  failedFiles?: number;
+  failedFileIds?: string[];
 }
 
 export const getReceiveHistory = callable<[], ReceiveHistoryItem[]>("get_receive_history");

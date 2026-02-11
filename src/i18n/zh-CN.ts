@@ -302,6 +302,22 @@ export const zhCN: TranslationKeys = {
     unknownModel: "未知型号",
   },
 
+  // Receive progress modal (during transfer)
+  receiveProgress: {
+    receiving: "接收中...",
+    filesCount: "{current} / {total} 个文件",
+  },
+
+  // Notifications (receiver-side: upload started/cancelled/completed etc.)
+  notify: {
+    uploadStarted: "上传开始",
+    uploadCompleted: "上传完成",
+    textUploadStarted: "文本上传开始",
+    textUploadCompleted: "文本上传完成",
+    uploadEvent: "上传事件",
+    uploadCancelled: "对方已取消传输",
+  },
+
   // File Received Modal
   fileReceived: {
     folderPath: "文件夹路径",

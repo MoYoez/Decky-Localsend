@@ -299,6 +299,22 @@ export const en = {
     unknownModel: "unknown",
   },
 
+  // Receive progress modal (during transfer)
+  receiveProgress: {
+    receiving: "Receiving...",
+    filesCount: "{current} / {total} files",
+  },
+
+  // Notifications (receiver-side: upload started/cancelled/completed etc.)
+  notify: {
+    uploadStarted: "Upload Started",
+    uploadCompleted: "Upload Completed",
+    textUploadStarted: "Text Upload Started",
+    textUploadCompleted: "Text Upload Completed",
+    uploadEvent: "Upload Event",
+    uploadCancelled: "Transfer cancelled by sender",
+  },
+
   // File Received Modal
   fileReceived: {
     folderPath: "Folder Path",

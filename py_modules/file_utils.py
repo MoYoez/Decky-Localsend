@@ -163,31 +163,48 @@ def create_receive_history_entry(
     title: str = "",
     is_text: bool = False,
     text_content: str = "",
-    current_count: int = 0
+    current_count: int = 0,
+    total_files: Optional[int] = None,
+    success_files: Optional[int] = None,
+    failed_files: Optional[int] = None,
+    failed_file_ids: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """
     Create a new receive history entry.
     
     Args:
         folder_path: Path to the received files folder
-        files: List of file names
+        files: List of file names (may be truncated)
         title: Optional title
         is_text: Whether this is a text-only entry
         text_content: Text content (for text entries)
         current_count: Current history count (for generating ID)
+        total_files: Actual total file count (overrides fileCount when set)
+        success_files: Number of successfully received files
+        failed_files: Number of failed files
+        failed_file_ids: List of failed file IDs
     
     Returns:
         History entry dictionary
     """
-    entry = {
+    file_count = total_files if total_files is not None else len(files)
+    entry: Dict[str, Any] = {
         "id": f"recv-{int(time.time() * 1000)}-{current_count}",
         "timestamp": time.time(),
         "title": title or ("Text Received" if is_text else "File Received"),
         "folderPath": folder_path,
-        "fileCount": len(files),
+        "fileCount": file_count,
         "files": files,
         "isText": is_text,
     }
+    if total_files is not None:
+        entry["totalFiles"] = total_files
+    if success_files is not None:
+        entry["successFiles"] = success_files
+    if failed_files is not None:
+        entry["failedFiles"] = failed_files
+    if failed_file_ids is not None:
+        entry["failedFileIds"] = failed_file_ids
     
     # Add text content preview for text items (truncate if too long)
     if is_text and text_content:

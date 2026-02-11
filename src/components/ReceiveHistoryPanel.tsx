@@ -106,13 +106,17 @@ export const ReceiveHistoryPanel = ({ saveReceiveHistory }: ReceiveHistoryPanelP
         />
       );
     } else {
-      // Show file modal for file items
+      // Show file modal for file items (pass totalFiles etc so modal shows correct count and "and N more")
       const modalResult = showModal(
         <FileReceivedModal
           title={item.title}
           folderPath={item.folderPath}
           fileCount={item.fileCount}
           files={item.files}
+          totalFiles={item.totalFiles ?? item.fileCount}
+          successFiles={item.successFiles}
+          failedFiles={item.failedFiles}
+          failedFileIds={item.failedFileIds}
           onClose={() => {}}
           closeModal={() => modalResult.Close()}
         />

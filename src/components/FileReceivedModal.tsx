@@ -81,7 +81,7 @@ export const FileReceivedModal = ({
               fontSize: '12px', 
               marginBottom: '5px' 
             }}>
-              <strong>{t("fileReceived.fileCount")}: {fileCount}</strong>
+              <strong>{t("fileReceived.fileCount")}: {totalFiles ?? fileCount}</strong>
             </div>
             {totalFiles !== undefined && (
               <div style={{ 
