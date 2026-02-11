@@ -305,6 +305,12 @@ export const en = {
     filesCount: "{current} / {total} files",
   },
 
+  // Send progress (sender-side: during upload)
+  sendProgress: {
+    sending: "Sending...",
+    filesCount: "{current} / {total} files",
+  },
+
   // Notifications (receiver-side: upload started/cancelled/completed etc.)
   notify: {
     uploadStarted: "Upload Started",

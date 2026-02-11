@@ -308,6 +308,12 @@ export const zhCN: TranslationKeys = {
     filesCount: "{current} / {total} 个文件",
   },
 
+  // Send progress (sender-side: during upload)
+  sendProgress: {
+    sending: "正在发送...",
+    filesCount: "{current} / {total} 个文件",
+  },
+
   // Notifications (receiver-side: upload started/cancelled/completed etc.)
   notify: {
     uploadStarted: "上传开始",

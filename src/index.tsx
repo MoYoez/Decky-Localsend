@@ -27,6 +27,7 @@ import { ConfirmReceiveModal } from "./components/ConfirmReceiveModal";
 import { ConfirmDownloadModal } from "./components/ConfirmDownloadModal";
 import { FileReceivedModal } from "./components/FileReceivedModal";
 import { ReceiveProgressPanel } from "./components/ReceiveProgressPanel";
+import { SendProgressPanel } from "./components/SendProgressPanel";
 import { BasicInputBoxModal } from "./components/basicInputBoxModal";
 import { ReceiveHistoryPanel } from "./components/ReceiveHistoryPanel";
 import { ScreenshotGalleryModal } from "./components/ScreenshotGalleryModal";
@@ -642,6 +643,9 @@ function Content() {
         onRemoveFromFavorites={handleRemoveFromFavorites}
       />
       <PanelSection title={t("upload.title")}>
+        {uploadProgress.length > 0 && (
+          <SendProgressPanel uploadProgress={uploadProgress} />
+        )}
         <PanelSectionRow>
           <Field label={t("upload.selectedDevice")}>
             {selectedDevice ? selectedDevice.alias : t("upload.none")}
@@ -802,20 +806,6 @@ function Content() {
               </ButtonItem>
             </PanelSectionRow>
           </>
-        )}
-        {uploadProgress.length > 0 && (
-          <PanelSectionRow>
-            <Field label={t("upload.uploadProgress")}>
-              <Focusable style={{ maxHeight: '150px', overflowY: 'auto' }}>
-                {uploadProgress.map((progress) => (
-                  <div key={progress.fileId} style={{ padding: '4px 0', fontSize: '12px' }}>
-                    {progress.fileName}: {progress.status}
-                    {progress.error && ` - ${progress.error}`}
-                  </div>
-                ))}
-              </Focusable>
-            </Field>
-          </PanelSectionRow>
         )}
       </PanelSection>
       <ReceiveHistoryPanel saveReceiveHistory={saveReceiveHistory} />

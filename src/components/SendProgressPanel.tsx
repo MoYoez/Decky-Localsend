@@ -1,30 +1,31 @@
 import { PanelSection, PanelSectionRow } from "@decky/ui";
 import { t } from "../i18n";
-import type { ReceiveProgressState } from "../utils/store";
+import type { UploadProgress } from "../types/upload";
 
-interface ReceiveProgressPanelProps {
-  receiveProgress: ReceiveProgressState;
+interface SendProgressPanelProps {
+  uploadProgress: UploadProgress[];
 }
 
 /**
- * Panel block showing receive progress (X / Y files) during an upload session.
- * Shown on the Decky panel when receiveProgress is set.
+ * Panel block showing send progress (X / Y files) during an upload session.
+ * Shown in the upload section when uploadProgress has items.
  */
-export const ReceiveProgressPanel = ({ receiveProgress }: ReceiveProgressPanelProps) => {
-  const { totalFiles, completedCount, currentFileName } = receiveProgress;
-  const percent = totalFiles > 0 ? Math.min(100, Math.round((completedCount / totalFiles) * 100)) : 0;
+export const SendProgressPanel = ({ uploadProgress }: SendProgressPanelProps) => {
+  const totalFiles = uploadProgress.length;
+  const completedCount = uploadProgress.filter(
+    (p) => p.status === "done" || p.status === "error"
+  ).length;
+  const currentItem = uploadProgress.find((p) => p.status === "uploading");
+  const currentFileName = currentItem?.fileName ?? "";
+  const percent =
+    totalFiles > 0
+      ? Math.min(100, Math.round((completedCount / totalFiles) * 100))
+      : 0;
 
   return (
-    <PanelSection title={t("receiveProgress.receiving")}>
+    <PanelSection title={t("sendProgress.sending")}>
       <PanelSectionRow>
-        <div
-          style={{
-            width: "100%",
-            maxWidth: "85%",
-            margin: "0 auto",
-            padding: "0 12px",
-          }}
-        >
+        <div style={{ width: "100%" }}>
           <div
             style={{
               marginBottom: "8px",
@@ -32,7 +33,7 @@ export const ReceiveProgressPanel = ({ receiveProgress }: ReceiveProgressPanelPr
               color: "#b8b6b4",
             }}
           >
-            {t("receiveProgress.filesCount")
+            {t("sendProgress.filesCount")
               .replace("{current}", String(completedCount))
               .replace("{total}", String(totalFiles))}
           </div>
