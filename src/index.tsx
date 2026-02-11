@@ -72,6 +72,7 @@ function Content() {
   const [scanLoading, setScanLoading] = useState(false);
   const uploadProgress = useLocalSendStore((state) => state.uploadProgress);
   const setUploadProgress = useLocalSendStore((state) => state.setUploadProgress);
+  const setSendProgressStats = useLocalSendStore((state) => state.setSendProgressStats);
   const [uploading, setUploading] = useState(false);
   const [saveReceiveHistory, setSaveReceiveHistory] = useState(true);
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo[]>([]);
@@ -176,7 +177,8 @@ function Content() {
     selectedFiles,
     setUploading,
     setUploadProgress,
-    clearFiles
+    clearFiles,
+    setSendProgressStats
   );
 
   const { fetchFavorites, handleAddToFavorites, handleRemoveFromFavorites } = createFavoritesHandlers(
@@ -377,6 +379,7 @@ function Content() {
       }
 
       const { sessionId, files: tokens } = prepareResult.data.data;
+      setSendProgressStats(Object.keys(tokens).length, 0);
 
       progress = progress.map((p) => ({ ...p, status: 'uploading' }));
       setUploadProgress(progress);
@@ -492,6 +495,7 @@ function Content() {
           title: t("common.success"),
           body: `${selectedFiles.length} ${t("common.files")}`,
         });
+        setSendProgressStats(null, null);
         clearFiles();
       } else if (hasErrors) {
         const successCount = progress.filter((p) => p.status === 'done').length;
@@ -508,6 +512,7 @@ function Content() {
         title: t("upload.failedTitle"),
         body: String(error),
       });
+      setSendProgressStats(null, null);
       setUploadProgress((prev) =>
         prev.map((p) => ({ ...p, status: 'error', error: String(error) }))
       );
@@ -1038,6 +1043,8 @@ export default definePlugin(() => {
       const fileId = String(data.fileId ?? "");
       const success = !!data.success;
       const errorMsg = String(data.error ?? "");
+      const totalFiles = data.totalFiles != null ? Number(data.totalFiles) : null;
+      const completedCount = data.completedCount != null ? Number(data.completedCount) : null;
       useLocalSendStore.getState().setUploadProgress((prev) =>
         prev.map((p) =>
           p.fileId === fileId
@@ -1045,6 +1052,9 @@ export default definePlugin(() => {
             : p
         )
       );
+      if (totalFiles != null && completedCount != null) {
+        useLocalSendStore.getState().setSendProgressStats(totalFiles, completedCount);
+      }
       return;
     }
 

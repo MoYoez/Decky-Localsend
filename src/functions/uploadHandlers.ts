@@ -11,7 +11,8 @@ export const createUploadHandlers = (
   selectedFiles: FileInfo[],
   setUploading: (uploading: boolean) => void,
   setUploadProgress: React.Dispatch<React.SetStateAction<UploadProgress[]>>,
-  clearFiles: () => void
+  clearFiles: () => void,
+  setSendProgressStats?: (total: number | null, completed: number | null) => void
 ) => {
   // handleUpload now accepts an optional override device for quick send scenarios
   const handleUpload = async (overrideDevice?: ScanDevice) => {
@@ -115,6 +116,7 @@ export const createUploadHandlers = (
       }
 
       const { sessionId, files: tokens } = prepareResult.data.data;
+      setSendProgressStats?.(Object.keys(tokens).length, 0);
 
       progress = progress.map((p) => ({ ...p, status: 'uploading' }));
       setUploadProgress(progress);
@@ -266,6 +268,7 @@ export const createUploadHandlers = (
             .replace("{count}", String(selectedFiles.length))
             .replace("{files}", t("common.files")),
         });
+        setSendProgressStats?.(null, null);
         // Clear files after successful upload
         clearFiles();
       } else if (hasErrors) {
@@ -283,6 +286,7 @@ export const createUploadHandlers = (
         title: t("upload.failedTitle"),
         body: String(error),
       });
+      setSendProgressStats?.(null, null);
       setUploadProgress((prev) =>
         prev.map((p) => ({ ...p, status: 'error', error: String(error) }))
       );
@@ -292,6 +296,7 @@ export const createUploadHandlers = (
   };
 
   const handleClearFiles = () => {
+    setSendProgressStats?.(null, null);
     clearFiles();
     setUploadProgress([]);
   };

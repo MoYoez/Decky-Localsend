@@ -1,6 +1,7 @@
 import { PanelSection, PanelSectionRow } from "@decky/ui";
 import { t } from "../i18n";
 import type { UploadProgress } from "../types/upload";
+import { useLocalSendStore } from "../utils/store";
 
 // Same theme as ReceiveProgressPanel for consistent card + progress bar layout
 const theme = {
@@ -22,13 +23,18 @@ interface SendProgressPanelProps {
 /**
  * Panel block showing send progress (X / Y files) during an upload session.
  * Shown at top (same position as ReceiveProgressPanel) when uploadProgress has items.
+ * Uses sendProgressTotalFiles/sendProgressCompletedCount from store when set (e.g. folder uploads);
+ * otherwise falls back to uploadProgress length and done/error count.
  * Layout matches ReceiveProgressPanel (card + Museck-style progress bar).
  */
 export const SendProgressPanel = ({ uploadProgress }: SendProgressPanelProps) => {
-  const totalFiles = uploadProgress.length;
-  const completedCount = uploadProgress.filter(
-    (p) => p.status === "done" || p.status === "error"
-  ).length;
+  const sendProgressTotalFiles = useLocalSendStore((state) => state.sendProgressTotalFiles);
+  const sendProgressCompletedCount = useLocalSendStore((state) => state.sendProgressCompletedCount);
+
+  const totalFiles = sendProgressTotalFiles ?? uploadProgress.length;
+  const completedCount =
+    sendProgressCompletedCount ??
+    uploadProgress.filter((p) => p.status === "done" || p.status === "error").length;
   const currentItem = uploadProgress.find((p) => p.status === "uploading");
   const currentFileName = currentItem?.fileName ?? "";
   const percent =

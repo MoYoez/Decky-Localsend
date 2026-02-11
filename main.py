@@ -501,6 +501,9 @@ class Plugin:
                     
             elif notification_type == 'info':
                 decky.logger.info(f"ℹ️  {title}: {message}")
+            elif notification_type == 'send_progress':
+                # Sender-side progress; already forwarded to frontend via _emit_notification_event
+                return
             else:
                 decky.logger.warning(f"⚠️  Unknown notification type: {notification_type}")
         except Exception as e:

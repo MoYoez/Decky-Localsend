@@ -85,6 +85,11 @@ interface LocalSendStore {
   uploadProgress: UploadProgress[];
   setUploadProgress: (value: React.SetStateAction<UploadProgress[]>) => void;
 
+  // Send progress display: actual file count (for folder uploads; set after prepare, updated by send_progress)
+  sendProgressTotalFiles: number | null;
+  sendProgressCompletedCount: number | null;
+  setSendProgressStats: (total: number | null, completed: number | null) => void;
+
   // Reset all state
   resetAll: () => void;
 }
@@ -100,6 +105,8 @@ export const useLocalSendStore = create<LocalSendStore>((set) => ({
   favorites: [],
   receiveProgress: null,
   uploadProgress: [],
+  sendProgressTotalFiles: null,
+  sendProgressCompletedCount: null,
 
   // Actions for devices
   setDevices: (devices) => set({ devices }),
@@ -161,6 +168,9 @@ export const useLocalSendStore = create<LocalSendStore>((set) => ({
       uploadProgress: typeof value === "function" ? value(state.uploadProgress) : value,
     })),
 
+  setSendProgressStats: (total, completed) =>
+    set({ sendProgressTotalFiles: total, sendProgressCompletedCount: completed }),
+
   // Reset all state to initial values
   resetAll: () => set({
     devices: [],
@@ -171,5 +181,7 @@ export const useLocalSendStore = create<LocalSendStore>((set) => ({
     favorites: [],
     receiveProgress: null,
     uploadProgress: [],
+    sendProgressTotalFiles: null,
+    sendProgressCompletedCount: null,
   }),
 }));
