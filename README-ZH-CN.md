@@ -42,14 +42,19 @@
 
 > 本插件需要在 Decky Loader 3.0 即以上运行
 
-1. 在你的 Steam Deck 上安装本插件 (从 release 下载最新 Release 即可 / 或是进入 Decky 测试商店下载测试版( Decky Localsend 0.37-1a47753 ))
+1. 在你的 Steam Deck 上安装本插件：  
+   - 可以从 release 下载最新 Release  
+   - 或者进入 Decky 测试商店下载测试版（Decky Localsend 0.37-1a47753）  
+   - 或者在 Decky 中以 URL 格式安装 输入
+  
+     > https://ba.sh/63Vg
 
 > 没有 Decky ? ｜ 请参考 [Decky-Loader](https://github.com/SteamDeckHomebrew/decky-loader) | 如果必要的话，你可以搜索一下 [B站](https://www.bilibili.com/video/BV1X5rGBdEDG) / [抖音](https://www.douyin.com/video/7593785753583340852) 以获取安装方式
 
-2. 从快捷访问菜单中打开插件
-3. 点击“启动后端”后，LocalSend 服务器会自动启动
-4. 你的 Steam Deck 现在可以被其他 LocalSend 客户端发现
-5. 从运行 LocalSend 的任意设备发送文件到你的 Steam Deck
+1. 从快捷访问菜单中打开插件
+2. 点击“启动后端”后，LocalSend 服务器会自动启动
+3. 你的 Steam Deck 现在可以被其他 LocalSend 客户端发现
+4. 从运行 LocalSend 的任意设备发送文件到你的 Steam Deck
 
 
 ## 配置说明
@@ -140,3 +145,5 @@ npm build
 > 这个插件是基于 Localsend 协议写的，所以快去给个Star吧！
 
 - [Decky Loader](https://github.com/SteamDeckHomebrew/decky-loader)
+
+- [ba.sh](https://app.ba.sh/)
