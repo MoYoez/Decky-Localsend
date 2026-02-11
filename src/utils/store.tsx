@@ -90,7 +90,7 @@ interface LocalSendStore {
   sendProgressCompletedCount: number | null;
   setSendProgressStats: (total: number | null, completed: number | null) => void;
 
-  // Current upload session id (for cancel-upload; set after prepare, cleared when send ends)
+  // Current upload session id (for cancel; set after prepare, cleared when send ends)
   currentUploadSessionId: string | null;
   setCurrentUploadSessionId: (id: string | null) => void;
 

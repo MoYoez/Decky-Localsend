@@ -44,7 +44,7 @@ export const SendProgressPanel = ({ uploadProgress }: SendProgressPanelProps) =>
     const sessionId = currentUploadSessionId;
     if (!sessionId) return;
     try {
-      await proxyPost(`/api/self/v1/cancel-upload?sessionId=${encodeURIComponent(sessionId)}`);
+      await proxyPost(`/api/self/v1/cancel?sessionId=${encodeURIComponent(sessionId)}`);
     } finally {
       setUploadProgress([]);
       setSendProgressStats(null, null);
