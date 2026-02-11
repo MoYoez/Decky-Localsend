@@ -233,14 +233,12 @@ function Content() {
   const openInputModal = (
     title: string,
     label: string,
-    options?: { multiline?: boolean }
   ) =>
     new Promise<string | null>((resolve) => {
       const modal = showModal(
         <BasicInputBoxModal
           title={title}
           label={label}
-          multiline={options?.multiline}
           onSubmit={(value) => {
             resolve(value);
             modal.Close();
@@ -255,7 +253,7 @@ function Content() {
     });
 
   const handleAddText = async () => {
-    const value = await openInputModal(t("modal.sendText"), t("modal.enterTextContent"), { multiline: true });
+    const value = await openInputModal(t("modal.sendText"), t("modal.enterTextContent"));
     if (value === null) {
       return;
     }
