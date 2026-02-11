@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { FavoriteDevice } from '../functions/favoritesHandlers';
+import type { UploadProgress } from '../types/upload';
 
 // Type definitions
 type ScanDevice = {
@@ -79,7 +80,11 @@ interface LocalSendStore {
   // Receive progress (receiver-side: upload_start .. upload_end, used by unix_socket_notification listener)
   receiveProgress: ReceiveProgressState | null;
   setReceiveProgress: (value: ReceiveProgressState | null | ((prev: ReceiveProgressState | null) => ReceiveProgressState | null)) => void;
-  
+
+  // Send progress (sender-side: updated by upload handler and send_progress notifications from backend)
+  uploadProgress: UploadProgress[];
+  setUploadProgress: (value: React.SetStateAction<UploadProgress[]>) => void;
+
   // Reset all state
   resetAll: () => void;
 }
@@ -94,6 +99,7 @@ export const useLocalSendStore = create<LocalSendStore>((set) => ({
   pendingShare: null,
   favorites: [],
   receiveProgress: null,
+  uploadProgress: [],
 
   // Actions for devices
   setDevices: (devices) => set({ devices }),
@@ -150,6 +156,11 @@ export const useLocalSendStore = create<LocalSendStore>((set) => ({
       receiveProgress: typeof value === "function" ? value(state.receiveProgress) : value,
     })),
 
+  setUploadProgress: (value) =>
+    set((state) => ({
+      uploadProgress: typeof value === "function" ? value(state.uploadProgress) : value,
+    })),
+
   // Reset all state to initial values
   resetAll: () => set({
     devices: [],
@@ -159,5 +170,6 @@ export const useLocalSendStore = create<LocalSendStore>((set) => ({
     pendingShare: null,
     favorites: [],
     receiveProgress: null,
+    uploadProgress: [],
   }),
 }));

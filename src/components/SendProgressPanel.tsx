@@ -2,13 +2,27 @@ import { PanelSection, PanelSectionRow } from "@decky/ui";
 import { t } from "../i18n";
 import type { UploadProgress } from "../types/upload";
 
+// Same theme as ReceiveProgressPanel for consistent card + progress bar layout
+const theme = {
+  surfaceContainer: "#1e1e2a",
+  surfaceContainerHigh: "#262636",
+  surfaceContainerHighest: "#2e2e42",
+  primary: "#4a9eff",
+  onSurfaceVariant: "#9898a8",
+  outline: "#48485a",
+  radiusMd: "16px",
+  radiusFull: "9999px",
+  transition: "width 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
+};
+
 interface SendProgressPanelProps {
   uploadProgress: UploadProgress[];
 }
 
 /**
  * Panel block showing send progress (X / Y files) during an upload session.
- * Shown in the upload section when uploadProgress has items.
+ * Shown at top (same position as ReceiveProgressPanel) when uploadProgress has items.
+ * Layout matches ReceiveProgressPanel (card + Museck-style progress bar).
  */
 export const SendProgressPanel = ({ uploadProgress }: SendProgressPanelProps) => {
   const totalFiles = uploadProgress.length;
@@ -21,49 +35,74 @@ export const SendProgressPanel = ({ uploadProgress }: SendProgressPanelProps) =>
     totalFiles > 0
       ? Math.min(100, Math.round((completedCount / totalFiles) * 100))
       : 0;
+  const filesCountText = t("sendProgress.filesCount")
+    .replace("{current}", String(completedCount))
+    .replace("{total}", String(totalFiles));
 
   return (
     <PanelSection title={t("sendProgress.sending")}>
       <PanelSectionRow>
-        <div style={{ width: "100%" }}>
+        <div
+          style={{
+            width: "100%",
+            maxWidth: "92%",
+            margin: "0 auto",
+            padding: "14px 16px",
+            background: `linear-gradient(135deg, ${theme.surfaceContainerHigh} 0%, ${theme.surfaceContainer} 100%)`,
+            borderRadius: theme.radiusMd,
+            boxShadow: "0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)",
+            border: `1px solid ${theme.outline}22`,
+          }}
+        >
           <div
             style={{
-              marginBottom: "8px",
-              fontSize: "14px",
-              color: "#b8b6b4",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              marginBottom: currentFileName ? "10px" : "0",
+              fontSize: "12px",
+              color: theme.onSurfaceVariant,
+              fontWeight: "500",
+              fontVariantNumeric: "tabular-nums",
             }}
           >
-            {t("sendProgress.filesCount")
-              .replace("{current}", String(completedCount))
-              .replace("{total}", String(totalFiles))}
-          </div>
-          <div
-            style={{
-              height: "12px",
-              backgroundColor: "#3d3d3d",
-              borderRadius: "6px",
-              overflow: "hidden",
-            }}
-          >
+            <span style={{ flexShrink: 0, minWidth: "72px", textAlign: "right" }}>{filesCountText}</span>
             <div
               style={{
-                height: "100%",
-                width: `${percent}%`,
-                backgroundColor: "#4a9eff",
-                borderRadius: "6px",
-                transition: "width 0.2s ease",
+                flex: 1,
+                minWidth: 0,
+                height: "6px",
+                backgroundColor: theme.surfaceContainerHighest,
+                borderRadius: theme.radiusFull,
+                overflow: "hidden",
+                position: "relative",
               }}
-            />
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  width: `${percent}%`,
+                  height: "100%",
+                  background: `linear-gradient(90deg, ${theme.primary}88 0%, ${theme.primary} 100%)`,
+                  borderRadius: theme.radiusFull,
+                  transition: theme.transition,
+                  boxShadow: `0 0 12px ${theme.primary}66`,
+                }}
+              />
+            </div>
           </div>
           {currentFileName && (
             <div
               style={{
-                marginTop: "8px",
-                fontSize: "12px",
-                color: "#888",
+                fontSize: "11px",
+                color: theme.onSurfaceVariant,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
+                paddingTop: "4px",
+                borderTop: `1px solid ${theme.outline}22`,
               }}
             >
               {currentFileName}

@@ -147,6 +147,7 @@ export const createUploadHandlers = (
               : p
           );
         }
+        setUploadProgress([...progress]);
       }
 
       // Upload folders and regular files

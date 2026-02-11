@@ -70,7 +70,8 @@ function Content() {
   });
   const [refreshLoading, setRefreshLoading] = useState(false);
   const [scanLoading, setScanLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
+  const uploadProgress = useLocalSendStore((state) => state.uploadProgress);
+  const setUploadProgress = useLocalSendStore((state) => state.setUploadProgress);
   const [uploading, setUploading] = useState(false);
   const [saveReceiveHistory, setSaveReceiveHistory] = useState(true);
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo[]>([]);
@@ -408,6 +409,7 @@ function Content() {
               : p
           );
         }
+        setUploadProgress([...progress]);
       }
 
       // Upload folders and regular files
@@ -599,6 +601,9 @@ function Content() {
           }}
         />
       )}
+      {uploadProgress.length > 0 && (
+        <SendProgressPanel uploadProgress={uploadProgress} />
+      )}
       <PanelSection title={t("backend.title")}>
         <PanelSectionRow>
           <ToggleField
@@ -658,9 +663,6 @@ function Content() {
         onRemoveFromFavorites={handleRemoveFromFavorites}
       />
       <PanelSection title={t("upload.title")}>
-        {uploadProgress.length > 0 && (
-          <SendProgressPanel uploadProgress={uploadProgress} />
-        )}
         <PanelSectionRow>
           <Field label={t("upload.selectedDevice")}>
             {selectedDevice ? selectedDevice.alias : t("upload.none")}
@@ -1029,6 +1031,21 @@ export default definePlugin(() => {
     if (event.type === "upload_end") {
       const data = event.data ?? {};
       useLocalSendStore.getState().setReceiveProgress((prev) => (prev?.sessionId === data.sessionId ? null : prev));
+    }
+
+    if (event.type === "send_progress") {
+      const data = event.data ?? {};
+      const fileId = String(data.fileId ?? "");
+      const success = !!data.success;
+      const errorMsg = String(data.error ?? "");
+      useLocalSendStore.getState().setUploadProgress((prev) =>
+        prev.map((p) =>
+          p.fileId === fileId
+            ? { ...p, status: success ? "done" : "error", error: success ? undefined : errorMsg }
+            : p
+        )
+      );
+      return;
     }
 
     // Skip toast for info type notifications (don't show decky info)
