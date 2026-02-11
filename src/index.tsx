@@ -1080,11 +1080,14 @@ export default definePlugin(() => {
         )
       );
 
-      // useLocalSendStore.getState().setSendProgressStats(currentTotal, currentCompleted + 1);
       const state = useLocalSendStore.getState();
       const currentCompleted = state.sendProgressCompletedCount ?? 0;
       const currentTotal = state.sendProgressTotalFiles;
-      state.setSendProgressStats(currentTotal, currentCompleted + 1);
+      // 添加上限检查，不超过 totalFiles
+      if (currentTotal != null) {
+        const newCompleted = Math.min(currentCompleted + 1, currentTotal);
+        state.setSendProgressStats(currentTotal, newCompleted);
+      }
 
       return;
     }
