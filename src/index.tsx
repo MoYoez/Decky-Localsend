@@ -1071,8 +1071,7 @@ export default definePlugin(() => {
       const fileId = String(data.fileId ?? "");
       const success = !!data.success;
       const errorMsg = String(data.error ?? "");
-      const totalFiles = data.totalFiles != null ? Number(data.totalFiles) : null;
-      const completedCount = data.completedCount != null ? Number(data.completedCount) : null;
+
       useLocalSendStore.getState().setUploadProgress((prev) =>
         prev.map((p) =>
           p.fileId === fileId
@@ -1080,9 +1079,13 @@ export default definePlugin(() => {
             : p
         )
       );
-      if (totalFiles != null && completedCount != null) {
-        useLocalSendStore.getState().setSendProgressStats(totalFiles, completedCount);
-      }
+
+      // useLocalSendStore.getState().setSendProgressStats(currentTotal, currentCompleted + 1);
+      const state = useLocalSendStore.getState();
+      const currentCompleted = state.sendProgressCompletedCount ?? 0;
+      const currentTotal = state.sendProgressTotalFiles;
+      state.setSendProgressStats(currentTotal, currentCompleted + 1);
+
       return;
     }
 
