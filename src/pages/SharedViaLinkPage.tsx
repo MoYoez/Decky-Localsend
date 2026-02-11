@@ -5,9 +5,9 @@ import {
   ButtonItem,
   Field,
   Focusable,
-  Router,
   ToggleField,
   showModal,
+  Navigation,
 } from "@decky/ui";
 import { toaster } from "@decky/api";
 import { useLocalSendStore, type ShareLinkSessionWithExpiry } from "../utils/store";
@@ -148,7 +148,7 @@ export const SharedViaLinkPage: FC = () => {
   // Cancel creating share
   const handleCancelCreate = () => {
     setPendingShare(null);
-    Router.NavigateBack();
+    Navigation.NavigateBack();
   };
 
   // Edit PIN with modal
@@ -227,11 +227,6 @@ export const SharedViaLinkPage: FC = () => {
             <Field label={t("shareLink.backendRequired")}>
               {t("backend.stopped")}
             </Field>
-          </PanelSectionRow>
-          <PanelSectionRow>
-            <ButtonItem layout="below" onClick={() => Router.NavigateBack()}>
-              {t("common.cancel")}
-            </ButtonItem>
           </PanelSectionRow>
         </PanelSection>
       </div>
@@ -329,7 +324,7 @@ export const SharedViaLinkPage: FC = () => {
             </Field>
           </PanelSectionRow>
           <PanelSectionRow>
-            <ButtonItem layout="below" onClick={() => Router.NavigateBack()}>
+            <ButtonItem layout="below" onClick={() => Navigation.NavigateBack()}>
               {t("common.cancel")}
             </ButtonItem>
           </PanelSectionRow>
