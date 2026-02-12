@@ -44,7 +44,7 @@
 
 1. 在你的 Steam Deck 上安装本插件：  
    - 可以从 release 下载最新 Release  
-   - 或者进入 Decky 测试商店下载测试版（Decky Localsend 0.37-1a47753）  
+   - 或者进入 Decky 测试商店下载测试版（Decky Localsend 0.45 - 963c075）(目前最新) 
    - 或者在 Decky 中以 URL 格式安装 输入
   
      > https://ba.sh/63Vg

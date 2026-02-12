@@ -46,7 +46,7 @@ Related Backend Repo: [MoYoez/localsend-go](https://github.com/MoYoez/localsend-
 
 1. On your Steam Deck, install the plugin:
    - Download the latest release from the releases page
-   - Or, get the beta version from the Decky test store (Decky Localsend 0.37-1a47753)
+   - Or, get the beta version from the Decky test store (Decky Localsend 0.45 - 963c075) (Latest current)
    - Or, install using a URL in Decky by entering:
 
      > https://ba.sh/63Vg
