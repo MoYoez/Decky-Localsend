@@ -167,10 +167,10 @@ export const zhCN: TranslationKeys = {
   about: {
     title: "关于",
     aboutPlugin: "关于此插件",
-    pluginTitle: "Decky Localsend 插件",
+    pluginTitle: "Decky LocalSend 插件",
     pluginDesc: "一款为 Decky Loader 打造的插件，在 Steam Deck 游戏模式下提供 LocalSend 功能。",
     starOnGitHub: "如果你喜欢本插件，欢迎在 GitHub 上给个 Star！",
-    pluginRepo: "Decky Localsend 插件",
+    pluginRepo: "Decky LocalSend 插件",
     githubRepo: "GitHub 仓库",
     developer: "开发者",
     githubProfile: "GitHub 主页",

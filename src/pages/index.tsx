@@ -644,7 +644,7 @@ export const ConfigPage: FC = () => {
 
   return (
     <SidebarNavigation
-      title={"Decky Localsend"}
+      title={"Decky LocalSend"}
       showTitle
       pages={[
         {

@@ -164,10 +164,10 @@ export const en = {
   about: {
     title: "About",
     aboutPlugin: "About This Plugin",
-    pluginTitle: "Decky Localsend Plugin",
+    pluginTitle: "Decky LocalSend Plugin",
     pluginDesc: "A plugin for Decky Loader that brings LocalSend functionality to Steam Deck in gaming mode.",
     starOnGitHub: "If you like this plugin, please consider giving it a star on GitHub!",
-    pluginRepo: "Decky Localsend Plugin",
+    pluginRepo: "Decky LocalSend Plugin",
     githubRepo: "GitHub Repo",
     developer: "Developer",
     githubProfile: "GitHub Profile",
