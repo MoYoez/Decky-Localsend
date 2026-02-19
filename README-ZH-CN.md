@@ -2,7 +2,7 @@
 
 <img src=".github/assets/send-to-back.svg" width="128" height="128" alt="Decky Localsend" />
 
-# Decky Localsend
+# Decky LocalSend
 
 ![visitors](https://visitor-badge.laobi.icu/badge?page_id=moyoez/Decky-localsend) ![Release](https://img.shields.io/github/v/release/moyoez/decky-localsend) ![License](https://img.shields.io/badge/license-BSD--3--Clause-green) ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/MoYoez/Decky-Localsend/build.yaml)
 
