@@ -1,16 +1,11 @@
 import {
-  DialogBody,
-  DialogButton,
-  DialogButtonPrimary,
-  DialogFooter,
-  DialogHeader,
+  ConfirmModal,
   Field,
-  ModalRoot,
   TextField,
 } from "@decky/ui";
 import { useState } from "react";
 import { t } from "../i18n";
-  
+
 interface basicInputBoxModalProps {
   title?: string;
   label?: string;
@@ -41,23 +36,22 @@ export const BasicInputBoxModal = ({
   };
 
   return (
-    <ModalRoot onCancel={handleCancel} closeModal={closeModal}>
-      <DialogHeader>{title}</DialogHeader>
-      <DialogBody>
-        <Field label={label}>
-          <TextField
-            value={inputValue}
-            onChange={(e) => setInputValue(e?.target?.value || "")}
-            style={{ width: "100%",minWidth: "200px" }}
-          />
-        </Field>
-      </DialogBody>
-      <DialogFooter>
-          <DialogButton onClick={handleCancel} style={{marginTop: "10px"}}>{t("common.cancel")}</DialogButton>
-        <DialogButtonPrimary onClick={handleSubmit} disabled={!inputValue.trim()} style={{marginTop: "10px"}}>
-          {t("common.confirm")}
-        </DialogButtonPrimary>
-      </DialogFooter>
-    </ModalRoot>
+    <ConfirmModal
+      strTitle={title}
+      onOK={handleSubmit}
+      onCancel={handleCancel}
+      closeModal={closeModal}
+      bOKDisabled={!inputValue.trim()}
+      strOKButtonText={t("common.confirm")}
+      strCancelButtonText={t("common.cancel")}
+    >
+      <Field label={label}>
+        <TextField
+          value={inputValue}
+          onChange={(e) => setInputValue(e?.target?.value || "")}
+          style={{ width: "100%", minWidth: "200px" }}
+        />
+      </Field>
+    </ConfirmModal>
   );
 };
